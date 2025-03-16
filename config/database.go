@@ -1,35 +1,53 @@
 package config
 
 import (
-	"log"
 	"os"
 
 	"github.com/habbazettt/mahad-service-go/models"
 	"github.com/joho/godotenv"
+	"github.com/sirupsen/logrus"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
 var DB *gorm.DB
 
-func ConnectDB() {
+func ConnectDB() *gorm.DB {
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		logrus.Warn("⚠️  .env file tidak ditemukan, menggunakan sistem environment")
 	}
 
-	dsn := os.Getenv("DB_URL")
+	InitLogger()
+
+	dsn := os.Getenv("LOCAL_DB_URL")
+	if os.Getenv("ENV") == "production" {
+		dsn = os.Getenv("PROD_DB_URL")
+		logrus.Info("🔄 Menggunakan database NeonDB (Production)")
+	} else {
+		logrus.Info("🔄 Menggunakan database PostgreSQL (Local)")
+	}
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		logrus.WithError(err).Fatal("❌ Gagal terhubung ke database!")
 	}
 
-	log.Println("Connected to database!")
+	logrus.Info("✅ Berhasil terhubung ke database!")
 	DB = db
+
+	return DB
 }
 
 func MigrateDB() {
-	DB.AutoMigrate(&models.Mentor{}, &models.Mahasantri{}, &models.Hafalan{}, &models.Absensi{})
-	log.Println("Database migrated successfully!")
+	if DB == nil {
+		logrus.Fatal("❌ Database belum terhubung! Jalankan ConnectDB() terlebih dahulu.")
+	}
+
+	err := DB.AutoMigrate(&models.Mentor{}, &models.Mahasantri{}, &models.Hafalan{}, &models.Absensi{})
+	if err != nil {
+		logrus.WithError(err).Fatal("❌ Gagal melakukan migrasi database!")
+	}
+
+	logrus.Info("✅ Database berhasil dimigrasi!")
 }
