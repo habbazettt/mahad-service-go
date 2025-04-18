@@ -1,11 +1,10 @@
-// dto/absensi.go
 package dto
 
 import "time"
 
 type AbsensiRequestDTO struct {
 	MahasantriID uint   `json:"mahasantri_id" validate:"required"`                 // Validasi untuk memastikan MahasantriID ada
-	Waktu        string `json:"waktu" validate:"required,oneof=subuh isya"`        // "Shubuh" atau "Isya"
+	Waktu        string `json:"waktu" validate:"required,oneof=shubuh isya"`       // "Shubuh" atau "Isya"
 	Status       string `json:"status" validate:"required,oneof=hadir absen izin"` // "Hadir", "Absen", atau "Izin"
 }
 
@@ -35,4 +34,26 @@ type MahasantriResponseDTO struct {
 	NIM     string `json:"nim"`
 	Jurusan string `json:"jurusan"`
 	Gender  string `json:"gender"`
+}
+
+type AbsensiDailySummaryDTO struct {
+	Tanggal string `json:"tanggal"` // Format: dd-mm-yyyy
+	Shubuh  string `json:"subuh"`   // hadir / absen / izin / belum-absen
+	Isya    string `json:"isya"`    // hadir / absen / izin / belum-absen
+}
+
+type AbsensiMonthlySummaryDTO struct {
+	Month      string         `json:"month"`
+	Year       int            `json:"year"`
+	TotalHadir int            `json:"total_hadir"`
+	TotalIzin  int            `json:"total_izin"`
+	TotalAlpa  int            `json:"total_alpa"`
+	Shubuh     StatusCountDTO `json:"shubuh"`
+	Isya       StatusCountDTO `json:"isya"`
+}
+
+type StatusCountDTO struct {
+	Hadir int `json:"hadir"`
+	Izin  int `json:"izin"`
+	Alpa  int `json:"alpa"`
 }

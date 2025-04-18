@@ -1,6 +1,9 @@
 package services
 
 import (
+	"math"
+	"strconv"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/habbazettt/mahad-service-go/dto"
 	"github.com/habbazettt/mahad-service-go/models"
@@ -18,7 +21,19 @@ func NewHafalanService(db *gorm.DB) *HafalanService {
 	return &HafalanService{DB: db}
 }
 
-// CreateHafalan menambahkan hafalan baru
+// CreateHafalan - Menambahkan hafalan baru
+// @Summary Menambahkan hafalan baru
+// @Description Endpoint ini digunakan untuk menambahkan hafalan baru oleh mentor
+// @Tags Hafalan
+// @Accept json
+// @Produce json
+// @Param request body dto.CreateHafalanRequest true "Create Hafalan Request"
+// @Success 201 {object} utils.Response "Hafalan created successfully"
+// @Failure 400 {object} utils.Response "Invalid request body"
+// @Failure 404 {object} utils.Response "Mahasantri not found"
+// @Failure 500 {object} utils.Response "Failed to create hafalan"
+// @Security BearerAuth
+// @Router /api/v1/hafalan [post]
 func (s *HafalanService) CreateHafalan(c *fiber.Ctx) error {
 	var req dto.CreateHafalanRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -65,20 +80,66 @@ func (s *HafalanService) CreateHafalan(c *fiber.Ctx) error {
 	return utils.SuccessResponse(c, fiber.StatusCreated, "Hafalan created successfully", hafalan)
 }
 
-// GetAllHafalan mengambil semua data hafalan
+// GetAllHafalan - Mengambil semua data hafalan dengan pagination
+// @Summary Mengambil semua data hafalan dengan pagination
+// @Description Endpoint ini digunakan untuk mengambil data hafalan secara terpaginated.
+// Mentor dapat mengambil daftar hafalan dengan menentukan parameter page dan limit.
+// @Tags Hafalan
+// @Accept json
+// @Produce json
+// @Param page query int false "Halaman yang ingin diambil" default(1)
+// @Param limit query int false "Jumlah data per halaman" default(10)
+// @Success 200 {object} utils.Response "Hafalan fetched successfully"
+// @Failure 500 {object} utils.Response "Failed to fetch hafalan"
+// @Security BearerAuth
+// @Router /api/v1/hafalan [get]
 func (s *HafalanService) GetAllHafalan(c *fiber.Ctx) error {
-	var hafalan []models.Hafalan
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	limit, _ := strconv.Atoi(c.Query("limit", "10"))
+	if page < 1 {
+		page = 1
+	}
+	offset := (page - 1) * limit
 
-	if err := s.DB.Find(&hafalan).Error; err != nil {
+	var totalHafalan int64
+	// Hitung total Hafalan untuk pagination
+	s.DB.Model(&models.Hafalan{}).Count(&totalHafalan)
+
+	var hafalan []models.Hafalan
+	// Paginate Hafalan
+	if err := s.DB.Limit(limit).Offset(offset).Find(&hafalan).Error; err != nil {
 		logrus.WithError(err).Error("Failed to fetch hafalan")
 		return utils.ResponseError(c, fiber.StatusInternalServerError, "Failed to fetch hafalan", err.Error())
 	}
 
-	logrus.WithField("count", len(hafalan)).Info("Fetched all hafalan successfully")
-	return utils.SuccessResponse(c, fiber.StatusOK, "Hafalan fetched successfully", hafalan)
+	logrus.WithFields(logrus.Fields{
+		"page":  page,
+		"limit": limit,
+	}).Info("Paginated hafalan retrieved successfully")
+
+	// Return response dengan pagination informasi
+	return utils.SuccessResponse(c, fiber.StatusOK, "Hafalan fetched successfully", fiber.Map{
+		"pagination": fiber.Map{
+			"current_page":  page,
+			"total_hafalan": totalHafalan,
+			"total_pages":   int(math.Ceil(float64(totalHafalan) / float64(limit))),
+		},
+		"hafalan": hafalan,
+	})
 }
 
 // GetHafalanByID mendapatkan hafalan berdasarkan ID
+// @Summary Mendapatkan hafalan berdasarkan ID
+// @Description Endpoint ini digunakan untuk mengambil data hafalan berdasarkan ID yang diberikan.
+// @Tags Hafalan
+// @Accept json
+// @Produce json
+// @Param id path int true "ID Hafalan"
+// @Success 200 {object} utils.Response "Hafalan found"
+// @Failure 404 {object} utils.Response "Hafalan not found"
+// @Failure 500 {object} utils.Response "Failed to fetch hafalan"
+// @Security BearerAuth
+// @Router /api/v1/hafalan/{id} [get]
 func (s *HafalanService) GetHafalanByID(c *fiber.Ctx) error {
 	id := c.Params("id")
 	var hafalan models.Hafalan
@@ -95,13 +156,37 @@ func (s *HafalanService) GetHafalanByID(c *fiber.Ctx) error {
 	return utils.SuccessResponse(c, fiber.StatusOK, "Hafalan found", hafalan)
 }
 
-// GetHafalanByMahasantriID mengambil semua hafalan berdasarkan MahasantriID dan menyertakan data Mahasantri
+// GetHafalanByMahasantriID - Mengambil semua hafalan berdasarkan MahasantriID dengan pagination dan filtering
+// @Summary Mengambil semua hafalan berdasarkan MahasantriID dengan pagination dan filtering
+// @Description Endpoint ini digunakan untuk mengambil data hafalan berdasarkan MahasantriID, dengan dukungan filtering berdasarkan kategori dan juz serta pagination.
+// @Tags Hafalan
+// @Accept json
+// @Produce json
+// @Param mahasantri_id path int true "ID Mahasantri"
+// @Param kategori query string false "Filter by kategori" Enums(ziyadah, murojaah)
+// @Param juz query string false "Filter by juz" Example(1, 2)
+// @Param page query int false "Page number for pagination" Default(1)
+// @Param limit query int false "Number of items per page" Default(10)
+// @Success 200 {object} utils.Response "Hafalan fetched successfully"
+// @Failure 400 {object} utils.Response "Invalid request parameters"
+// @Failure 404 {object} utils.Response "Mahasantri not found"
+// @Failure 500 {object} utils.Response "Failed to fetch hafalan"
+// @Security BearerAuth
+// @Router /api/v1/hafalan/mahasantri/{mahasantri_id} [get]
 func (s *HafalanService) GetHafalanByMahasantriID(c *fiber.Ctx) error {
 	mahasantriID := c.Params("mahasantri_id")
 
 	// Ambil query parameters untuk filtering
 	kategori := c.Query("kategori") // Optional filter by kategori
 	juz := c.Query("juz")           // Optional filter by juz
+
+	// Ambil query parameters untuk pagination
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	limit, _ := strconv.Atoi(c.Query("limit", "10"))
+	if page < 1 {
+		page = 1
+	}
+	offset := (page - 1) * limit
 
 	// Ambil data Mahasantri
 	var mahasantri models.Mahasantri
@@ -123,9 +208,13 @@ func (s *HafalanService) GetHafalanByMahasantriID(c *fiber.Ctx) error {
 		query = query.Where("juz = ?", juz)
 	}
 
-	// Ambil data Hafalan berdasarkan query yang sudah difilter
+	// Hitung total hafalan untuk pagination
+	var totalHafalan int64
+	query.Model(&models.Hafalan{}).Count(&totalHafalan)
+
+	// Ambil data Hafalan dengan pagination
 	var hafalan []models.Hafalan
-	if err := query.Find(&hafalan).Error; err != nil {
+	if err := query.Limit(limit).Offset(offset).Find(&hafalan).Error; err != nil {
 		logrus.WithError(err).WithField("mahasantri_id", mahasantriID).Error("Failed to fetch hafalan")
 		return utils.ResponseError(c, fiber.StatusInternalServerError, "Failed to fetch hafalan", err.Error())
 	}
@@ -174,37 +263,78 @@ func (s *HafalanService) GetHafalanByMahasantriID(c *fiber.Ctx) error {
 			"ziyadah":  totalZiyadah,
 			"murojaah": totalMurojaah,
 		},
+		"pagination": fiber.Map{
+			"current_page":  page,
+			"total_hafalan": totalHafalan,
+			"total_pages":   int(math.Ceil(float64(totalHafalan) / float64(limit))),
+		},
 	}
 
-	logrus.WithField("mahasantri_id", mahasantriID).Info("Fetched hafalan with total setoran successfully")
+	logrus.WithField("mahasantri_id", mahasantriID).Info("Fetched hafalan with total setoran and pagination successfully")
 	return utils.SuccessResponse(c, fiber.StatusOK, "Hafalan fetched successfully", response)
 }
 
+// GetHafalanByKategori - Mengambil semua hafalan berdasarkan MahasantriID dan kategori dengan pagination
+// @Summary Mengambil semua hafalan berdasarkan MahasantriID dan kategori dengan pagination
+// @Description Endpoint ini digunakan untuk mengambil data hafalan berdasarkan MahasantriID dan kategori (ziyadah atau murojaah), dengan dukungan pagination.
+// @Tags Hafalan
+// @Accept json
+// @Produce json
+// @Param mahasantri_id path int true "ID Mahasantri"
+// @Param kategori query string true "Kategori untuk memfilter hafalan" Enums(ziyadah, murojaah)
+// @Param page query int false "Page number for pagination" Default(1)
+// @Param limit query int false "Number of items per page" Default(10)
+// @Success 200 {object} utils.Response "Hafalan by category fetched successfully"
+// @Failure 400 {object} utils.Response "Invalid request parameters"
+// @Failure 404 {object} utils.Response "Mahasantri not found"
+// @Failure 500 {object} utils.Response "Failed to fetch hafalan"
+// @Security BearerAuth
+// @Router /api/v1/hafalan/{mahasantri_id}/kategori [get]
 func (s *HafalanService) GetHafalanByKategori(c *fiber.Ctx) error {
 	mahasantriID := c.Params("mahasantri_id")
 	kategori := c.Query("kategori")
 
+	// Validasi kategori
 	if kategori != "ziyadah" && kategori != "murojaah" {
 		return utils.ResponseError(c, fiber.StatusBadRequest, "Kategori harus 'ziyadah' atau 'murojaah'", nil)
 	}
 
+	// Ambil query parameters untuk pagination
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	limit, _ := strconv.Atoi(c.Query("limit", "10"))
+	if page < 1 {
+		page = 1
+	}
+	offset := (page - 1) * limit
+
+	// Ambil data Mahasantri
 	var mahasantri models.Mahasantri
 	if err := s.DB.First(&mahasantri, mahasantriID).Error; err != nil {
 		logrus.WithError(err).WithField("mahasantri_id", mahasantriID).Warn("Mahasantri not found")
 		return utils.ResponseError(c, fiber.StatusNotFound, "Mahasantri not found", nil)
 	}
 
+	// Ambil Hafalan berdasarkan MahasantriID dan kategori dengan filtering
+	query := s.DB.Where("mahasantri_id = ? AND kategori = ?", mahasantriID, kategori)
+
+	// Hitung total hafalan untuk pagination
+	var totalHafalan int64
+	query.Model(&models.Hafalan{}).Count(&totalHafalan)
+
+	// Ambil data Hafalan dengan pagination
 	var hafalan []models.Hafalan
-	if err := s.DB.Where("mahasantri_id = ? AND kategori = ?", mahasantriID, kategori).Find(&hafalan).Error; err != nil {
+	if err := query.Limit(limit).Offset(offset).Find(&hafalan).Error; err != nil {
 		logrus.WithError(err).WithField("mahasantri_id", mahasantriID).Error("Failed to fetch hafalan")
 		return utils.ResponseError(c, fiber.StatusInternalServerError, "Failed to fetch hafalan", err.Error())
 	}
 
+	// Hitung total setoran
 	var totalSetoran float32
 	for _, h := range hafalan {
 		totalSetoran += h.TotalSetoran
 	}
 
+	// Format response dengan data Mahasantri, Hafalan, dan Total Setoran
 	response := fiber.Map{
 		"mahasantri": fiber.Map{
 			"id":      mahasantri.ID,
@@ -216,17 +346,35 @@ func (s *HafalanService) GetHafalanByKategori(c *fiber.Ctx) error {
 		"kategori":      kategori,
 		"hafalan":       hafalan,
 		"total_setoran": totalSetoran,
+		"pagination": fiber.Map{
+			"current_page":  page,
+			"total_hafalan": totalHafalan,
+			"total_pages":   int(math.Ceil(float64(totalHafalan) / float64(limit))),
+		},
 	}
 
 	logrus.WithFields(logrus.Fields{
 		"mahasantri_id": mahasantriID,
 		"kategori":      kategori,
-	}).Info("Fetched hafalan by category successfully")
+	}).Info("Fetched hafalan by category with pagination successfully")
 
 	return utils.SuccessResponse(c, fiber.StatusOK, "Hafalan by category fetched successfully", response)
 }
 
-// UpdateHafalan memperbarui data hafalan
+// UpdateHafalan - Memperbarui data hafalan
+// @Summary Memperbarui data hafalan berdasarkan ID
+// @Description Endpoint ini digunakan untuk memperbarui data hafalan yang sudah ada berdasarkan ID.
+// @Tags Hafalan
+// @Accept json
+// @Produce json
+// @Param id path int true "ID Hafalan"
+// @Param body body dto.UpdateHafalanRequest true "Data untuk memperbarui hafalan"
+// @Success 200 {object} utils.Response "Hafalan updated successfully"
+// @Failure 400 {object} utils.Response "Invalid request body or no changes detected"
+// @Failure 404 {object} utils.Response "Hafalan not found"
+// @Failure 500 {object} utils.Response "Failed to update hafalan"
+// @Security BearerAuth
+// @Router /api/v1/hafalan/{id} [put]
 func (s *HafalanService) UpdateHafalan(c *fiber.Ctx) error {
 	id := c.Params("id")
 	var hafalan models.Hafalan
@@ -290,7 +438,16 @@ func (s *HafalanService) UpdateHafalan(c *fiber.Ctx) error {
 	return utils.SuccessResponse(c, fiber.StatusOK, "Hafalan updated successfully", hafalan)
 }
 
-// DeleteHafalan menghapus hafalan berdasarkan ID
+// DeleteHafalan - Menghapus hafalan berdasarkan ID
+// @Summary Menghapus hafalan berdasarkan ID
+// @Description Endpoint ini digunakan untuk menghapus data hafalan berdasarkan ID yang diberikan.
+// @Tags Hafalan
+// @Param id path int true "ID Hafalan"
+// @Success 200 {object} utils.Response "Hafalan deleted successfully"
+// @Failure 404 {object} utils.Response "Hafalan not found"
+// @Failure 500 {object} utils.Response "Failed to delete hafalan"
+// @Security BearerAuth
+// @Router /api/v1/hafalan/{id} [delete]
 func (s *HafalanService) DeleteHafalan(c *fiber.Ctx) error {
 	id := c.Params("id")
 	var hafalan models.Hafalan

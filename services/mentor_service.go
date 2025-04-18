@@ -1,6 +1,9 @@
 package services
 
 import (
+	"math"
+	"strconv"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/habbazettt/mahad-service-go/dto"
 	"github.com/habbazettt/mahad-service-go/models"
@@ -13,18 +16,39 @@ type MentorService struct {
 	DB *gorm.DB
 }
 
-// GetAllMentors - Mengambil semua mentor (Hanya untuk mentor)
+// GetAllMentors - Mengambil semua mentor dengan pagination (Hanya untuk mentor)
+// @Summary Mengambil daftar mentor dengan pagination
+// @Description Endpoint untuk mengambil daftar mentor dengan pagination berdasarkan query parameter `page` dan `limit`
+// @Tags Mentor
+// @Accept json
+// @Produce json
+// @Param page query int false "Page number" default(1)
+// @Param limit query int false "Limit per page" default(10)
+// @Success 200 {object} utils.Response "List of mentors retrieved successfully"
+// @Failure 500 {object} utils.Response "Failed to fetch mentors"
+// @Security BearerAuth
+// @Router /api/v1/mentors [get]
 func (s *MentorService) GetAllMentors(c *fiber.Ctx) error {
-	var mentors []models.Mentor
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	limit, _ := strconv.Atoi(c.Query("limit", "10"))
+	if page < 1 {
+		page = 1
+	}
+	offset := (page - 1) * limit
 
-	if err := s.DB.Preload("Mahasantri").Find(&mentors).Error; err != nil {
+	var totalMentors int64
+	s.DB.Model(&models.Mentor{}).Count(&totalMentors)
+
+	var mentors []models.Mentor
+	if err := s.DB.Preload("Mahasantri").
+		Limit(limit).Offset(offset).
+		Find(&mentors).Error; err != nil {
 		logrus.WithError(err).Error("Failed to fetch mentors")
 		return utils.ResponseError(c, fiber.StatusInternalServerError, "Failed to fetch mentors", err.Error())
 	}
 
 	response := make([]dto.MentorResponse, len(mentors))
 	for i, mentor := range mentors {
-		// Konversi Mahasantri ke DTO
 		mahasantriList := make([]dto.MahasantriResponse, len(mentor.Mahasantri))
 		for j, m := range mentor.Mahasantri {
 			mahasantriList[j] = dto.MahasantriResponse{
@@ -43,15 +67,38 @@ func (s *MentorService) GetAllMentors(c *fiber.Ctx) error {
 			Email:           mentor.Email,
 			Gender:          mentor.Gender,
 			MahasantriCount: len(mentor.Mahasantri),
-			Mahasantri:      mahasantriList, // 🔥 Tambahkan ini
+			Mahasantri:      mahasantriList,
 		}
 	}
 
-	logrus.Info("Mentors retrieved successfully")
-	return utils.SuccessResponse(c, fiber.StatusOK, "All mentors retrieved successfully", response)
+	logrus.WithFields(logrus.Fields{
+		"handler": "GetAllMentors",
+		"page":    page,
+		"limit":   limit,
+	}).Info("Paginated mentors retrieved successfully")
+
+	return utils.SuccessResponse(c, fiber.StatusOK, "Mentors retrieved successfully", fiber.Map{
+		"pagination": fiber.Map{
+			"current_page":  page,
+			"total_mentors": totalMentors,
+			"total_pages":   int(math.Ceil(float64(totalMentors) / float64(limit))),
+		},
+		"mentors": response,
+	})
 }
 
 // GetMentorByID - Mengambil mentor berdasarkan ID
+// @Summary Mengambil data mentor berdasarkan ID
+// @Description Endpoint untuk mengambil data mentor berdasarkan ID. Mahasantri yang dibimbing juga akan dimuat (Preload).
+// @Tags Mentor
+// @Accept json
+// @Produce json
+// @Param id path int true "Mentor ID"
+// @Success 200 {object} dto.MentorResponse "Mentor data retrieved successfully"
+// @Failure 404 {object} utils.Response "Mentor not found"
+// @Failure 500 {object} utils.Response "Failed to fetch mentor"
+// @Security BearerAuth
+// @Router /api/v1/mentors/{id} [get]
 func (s *MentorService) GetMentorByID(c *fiber.Ctx) error {
 	id := c.Params("id")
 	var mentor models.Mentor
@@ -92,7 +139,21 @@ func (s *MentorService) GetMentorByID(c *fiber.Ctx) error {
 	return utils.SuccessResponse(c, fiber.StatusOK, "Successfully retrieved mentor by ID", response)
 }
 
-// UpdateMentor - Memperbarui data mentor berdasarkan ID (Hanya untuk mentor)
+// UpdateMentor - Memperbarui data mentor berdasarkan ID
+// @Summary Memperbarui data mentor berdasarkan ID
+// @Description Endpoint untuk memperbarui data mentor berdasarkan ID. Pastikan email mentor yang baru tidak digunakan oleh mentor lain.
+// @Tags Mentor
+// @Accept json
+// @Produce json
+// @Param id path int true "Mentor ID"
+// @Param updateMentorRequest body dto.UpdateMentorRequest true "Data mentor yang akan diperbarui"
+// @Success 200 {object} dto.MentorResponse "Mentor updated successfully"
+// @Failure 400 {object} utils.Response "Invalid request body or no changes detected"
+// @Failure 404 {object} utils.Response "Mentor not found"
+// @Failure 409 {object} utils.Response "Email already in use"
+// @Failure 500 {object} utils.Response "Failed to update mentor"
+// @Security BearerAuth
+// @Router /api/v1/mentors/{id} [put]
 func (s *MentorService) UpdateMentor(c *fiber.Ctx) error {
 	id := c.Params("id")
 
@@ -186,7 +247,18 @@ func (s *MentorService) UpdateMentor(c *fiber.Ctx) error {
 	return utils.SuccessResponse(c, fiber.StatusOK, "Mentor updated successfully", response)
 }
 
-// DeleteMentor - Menghapus mentor berdasarkan ID (Hanya untuk mentor)
+// DeleteMentor - Menghapus mentor berdasarkan ID
+// @Summary Menghapus mentor berdasarkan ID
+// @Description Endpoint untuk menghapus data mentor berdasarkan ID. Pastikan mentor yang ingin dihapus ada di database.
+// @Tags Mentor
+// @Accept json
+// @Produce json
+// @Param id path int true "Mentor ID"
+// @Success 200 {object} utils.Response "Mentor deleted successfully"
+// @Failure 404 {object} utils.Response "Mentor not found"
+// @Failure 500 {object} utils.Response "Failed to delete mentor"
+// @Security BearerAuth
+// @Router /api/v1/mentors/{id} [delete]
 func (s *MentorService) DeleteMentor(c *fiber.Ctx) error {
 	id := c.Params("id")
 	var mentor models.Mentor

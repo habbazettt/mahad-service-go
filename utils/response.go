@@ -27,3 +27,10 @@ func ResponseError(c *fiber.Ctx, statusCode int, message string, details interfa
 		"error":   details,
 	})
 }
+
+// Pagination struct untuk menyimpan informasi pagination
+type Pagination struct {
+	CurrentPage     int `json:"current_page"`
+	TotalMahasantri int `json:"total_mahasantri"`
+	TotalPages      int `json:"total_pages"`
+}

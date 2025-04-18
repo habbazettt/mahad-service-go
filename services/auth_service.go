@@ -19,7 +19,17 @@ type AuthService struct {
 	DB *gorm.DB
 }
 
-// RegisterMahasantri menangani registrasi Mahasantri
+// RegisterMahasantri godoc
+// @Summary Register Mahasantri
+// @Description Mendaftarkan akun Mahasantri baru
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param body body dto.RegisterMahasantriRequest true "Data pendaftaran Mahasantri"
+// @Success 201 {object} utils.SuccessExample
+// @Failure 400 {object} utils.ErrorExample
+// @Failure 409 {object} utils.ErrorExample
+// @Router /api/v1/auth/register/mahasantri [post]
 func (s *AuthService) RegisterMahasantri(c *fiber.Ctx) error {
 	var req dto.RegisterMahasantriRequest
 
@@ -83,7 +93,17 @@ func (s *AuthService) RegisterMahasantri(c *fiber.Ctx) error {
 	})
 }
 
-// RegisterMentor menangani registrasi Mentor
+// RegisterMentor godoc
+// @Summary Register Mentor
+// @Description Mendaftarkan akun Mentor baru
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param body body dto.RegisterMentorRequest true "Data pendaftaran Mentor"
+// @Success 201 {object} utils.SuccessMentorExample
+// @Failure 400 {object} utils.ErrorMentorExample
+// @Failure 409 {object} utils.ErrorMentorExample
+// @Router /api/v1/auth/register/mentor [post]
 func (s *AuthService) RegisterMentor(c *fiber.Ctx) error {
 	var req dto.RegisterMentorRequest
 
@@ -131,7 +151,17 @@ func (s *AuthService) RegisterMentor(c *fiber.Ctx) error {
 	})
 }
 
-// LoginMentor menangani login untuk Mentor
+// LoginMentor godoc
+// @Summary Login Mentor
+// @Description Melakukan login untuk mentor dengan email dan password
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param body body dto.LoginMentorRequest true "Data login Mentor"
+// @Success 200 {object} utils.SuccessLoginMentorExample
+// @Failure 400 {object} utils.ErrorLoginMentorExample
+// @Failure 401 {object} utils.ErrorLoginMentorExample
+// @Router /api/v1/auth/login/mentor [post]
 func (s *AuthService) LoginMentor(c *fiber.Ctx) error {
 	var req dto.LoginMentorRequest
 
@@ -151,25 +181,45 @@ func (s *AuthService) LoginMentor(c *fiber.Ctx) error {
 		return utils.ResponseError(c, fiber.StatusUnauthorized, "Invalid email or password", nil)
 	}
 
+	// Hitung jumlah Mahasantri yang terkait dengan mentor ini
+	var mahasantriCount int64
+	if err := s.DB.Model(&models.Mahasantri{}).Where("mentor_id = ?", mentor.ID).Count(&mahasantriCount).Error; err != nil {
+		logrus.WithError(err).Error("Failed to count mahasantri")
+		return utils.ResponseError(c, fiber.StatusInternalServerError, "Failed to fetch mahasantri count", err.Error())
+	}
+
+	// Generate token
 	token, err := utils.GenerateToken(mentor.ID, RoleMentor)
 	if err != nil {
 		logrus.WithError(err).Error("Failed to generate token")
 		return utils.ResponseError(c, fiber.StatusInternalServerError, "Failed to generate token", err.Error())
 	}
 
+	// Return response dengan menambahkan field mahasantri_count
 	return utils.SuccessResponse(c, fiber.StatusOK, "Login successful", dto.AuthResponse{
 		Token: token,
 		User: dto.UserMentorResponse{
-			ID:       mentor.ID,
-			Nama:     mentor.Nama,
-			Email:    mentor.Email,
-			Gender:   mentor.Gender,
-			UserType: RoleMentor,
+			ID:              mentor.ID,
+			Nama:            mentor.Nama,
+			Email:           mentor.Email,
+			Gender:          mentor.Gender,
+			UserType:        RoleMentor,
+			MahasantriCount: int(mahasantriCount), // Tambahkan jumlah Mahasantri
 		},
 	})
 }
 
-// LoginMahasantri menangani login untuk Mahasantri
+// LoginMahasantri godoc
+// @Summary Login Mahasantri
+// @Description Melakukan login untuk mahasantri dengan NIM dan password
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param body body dto.LoginMahasantriRequest true "Data login Mahasantri"
+// @Success 200 {object} utils.SuccessLoginMahasantriExample
+// @Failure 400 {object} utils.ErrorLoginMahasantriExample
+// @Failure 401 {object} utils.ErrorLoginMahasantriExample
+// @Router /api/v1/auth/login/mahasantri [post]
 func (s *AuthService) LoginMahasantri(c *fiber.Ctx) error {
 	var req dto.LoginMahasantriRequest
 
@@ -213,7 +263,17 @@ func (s *AuthService) LoginMahasantri(c *fiber.Ctx) error {
 	})
 }
 
-// GetCurrentUser mendapatkan user yang sedang login
+// GetCurrentUser godoc
+// @Summary Get current user data
+// @Description Mengambil data user yang sedang login (baik Mentor atau Mahasantri)
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} utils.SuccessGetCurrentUserExample
+// @Failure 401 {object} utils.ErrorGetCurrentUserExample
+// @Failure 404 {object} utils.ErrorGetCurrentUserExample
+// @Router /api/v1/auth/me [get]
 func (s *AuthService) GetCurrentUser(c *fiber.Ctx) error {
 	userClaims, ok := c.Locals("user").(*utils.Claims)
 	if !ok || userClaims == nil {
@@ -231,13 +291,22 @@ func (s *AuthService) GetCurrentUser(c *fiber.Ctx) error {
 			return utils.ResponseError(c, fiber.StatusNotFound, "User not found", nil)
 		}
 
+		// Hitung jumlah Mahasantri yang terkait dengan mentor ini
+		var mahasantriCount int64
+		if err := s.DB.Model(&models.Mahasantri{}).Where("mentor_id = ?", mentor.ID).Count(&mahasantriCount).Error; err != nil {
+			logrus.WithError(err).Error("Failed to count mahasantri")
+			return utils.ResponseError(c, fiber.StatusInternalServerError, "Failed to fetch mahasantri count", err.Error())
+		}
+
 		// Format response for Mentor
 		response = dto.UserMentorResponse{
-			ID:       mentor.ID,
-			Nama:     mentor.Nama,
-			Email:    mentor.Email,
-			Gender:   mentor.Gender,
-			UserType: RoleMentor,
+			ID:              mentor.ID,
+			Nama:            mentor.Nama,
+			Email:           mentor.Email,
+			Gender:          mentor.Gender,
+			UserType:        RoleMentor,
+			MahasantriCount: int(mahasantriCount), // Tambahkan jumlah Mahasantri
+
 		}
 
 	case RoleMahasantri:

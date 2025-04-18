@@ -1,6 +1,8 @@
 package services
 
 import (
+	"fmt"
+	"math"
 	"strconv"
 	"time"
 
@@ -17,6 +19,19 @@ type AbsensiService struct {
 }
 
 // CreateAbsensi - Membuat absensi baru
+// @Summary Membuat absensi baru untuk Mahasantri
+// @Description Endpoint ini digunakan untuk membuat absensi baru untuk Mahasantri berdasarkan data yang dikirimkan oleh mentor.
+// @Tags Absensi
+// @Accept json
+// @Produce json
+// @Param request body dto.AbsensiRequestDTO true "Data Absensi"
+// @Success 201 {object} utils.Response "Absensi created successfully"
+// @Failure 400 {object} utils.Response "Invalid request body or Absensi already recorded for this time"
+// @Failure 401 {object} utils.Response "Unauthorized"
+// @Failure 404 {object} utils.Response "Mahasantri not found"
+// @Failure 500 {object} utils.Response "Failed to create absensi"
+// @Security BearerAuth
+// @Router /api/v1/absensi [post]
 func (s *AbsensiService) CreateAbsensi(c *fiber.Ctx) error {
 	var req dto.AbsensiRequestDTO
 
@@ -100,6 +115,24 @@ func (s *AbsensiService) CreateAbsensi(c *fiber.Ctx) error {
 }
 
 // GetAbsensiByMahasantriID - Mengambil absensi berdasarkan Mahasantri ID dengan rentang tanggal dan filter waktu/status
+// @Summary Mendapatkan daftar absensi berdasarkan Mahasantri ID dengan filter tanggal, waktu, dan status
+// @Description Endpoint ini digunakan untuk mendapatkan daftar absensi dari Mahasantri tertentu berdasarkan filter tanggal, waktu, status, serta mendukung paginasi.
+// @Tags Absensi
+// @Accept json
+// @Produce json
+// @Param mahasantri_id path int true "Mahasantri ID"
+// @Param start_date query string false "Tanggal awal filter (format: dd-mm-yyyy)"
+// @Param end_date query string false "Tanggal akhir filter (format: dd-mm-yyyy)"
+// @Param waktu query string false "Waktu for filtering absensi" (shubuh, isya)
+// @Param status query string false "Status for filtering absensi" (hadir, izin, alpa)
+// @Param page query int false "Page number for pagination" default(1)
+// @Param limit query int false "Limit number of results per page" default(10)
+// @Success 200 {object} utils.Response "Absensi retrieved successfully"
+// @Failure 400 {object} utils.Response "Invalid input or query parameters"
+// @Failure 404 {object} utils.Response "Mahasantri not found"
+// @Failure 500 {object} utils.Response "Failed to retrieve absensi"
+// @Security BearerAuth
+// @Router /api/v1/absensi/mahasantri/{mahasantri_id} [get]
 func (s *AbsensiService) GetAbsensiByMahasantriID(c *fiber.Ctx) error {
 	id := c.Params("mahasantri_id")
 
@@ -112,12 +145,24 @@ func (s *AbsensiService) GetAbsensiByMahasantriID(c *fiber.Ctx) error {
 		return utils.ResponseError(c, fiber.StatusBadRequest, "Invalid Mahasantri ID format", err.Error())
 	}
 
-	startDate := c.Query("start_date")
-	endDate := c.Query("end_date")
-
+	// Get query parameters for start_date, end_date, waktu, status
+	startDate := c.Query("start_date") // ex: 04-01-2023
+	endDate := c.Query("end_date")     // ex: 04-01-2023
 	waktuFilter := c.Query("waktu")
 	statusFilter := c.Query("status")
 
+	// Get pagination parameters
+	page, err := strconv.Atoi(c.Query("page", "1")) // Default to page 1 if not provided
+	if err != nil || page <= 0 {
+		page = 1
+	}
+	limit, err := strconv.Atoi(c.Query("limit", "10")) // Default to 10 results per page if not provided
+	if err != nil || limit <= 0 {
+		limit = 10
+	}
+	offset := (page - 1) * limit // Calculate offset for pagination
+
+	// Set date layout
 	layout := "02-01-2006"
 	var start, end time.Time
 
@@ -151,8 +196,16 @@ func (s *AbsensiService) GetAbsensiByMahasantriID(c *fiber.Ctx) error {
 		query = query.Where("status = ?", statusFilter)
 	}
 
+	// Count total absensi untuk pagination
+	var totalAbsensi int64
+	if err := query.Model(&models.Absensi{}).Count(&totalAbsensi).Error; err != nil {
+		logrus.WithError(err).Error("Failed to count total absensi")
+		return utils.ResponseError(c, fiber.StatusInternalServerError, "Failed to count total absensi", err.Error())
+	}
+
+	// Apply pagination
 	var absensi []models.Absensi
-	if err := query.Find(&absensi).Error; err != nil {
+	if err := query.Limit(limit).Offset(offset).Find(&absensi).Error; err != nil {
 		logrus.WithError(err).Error("Failed to fetch absensi")
 		return utils.ResponseError(c, fiber.StatusInternalServerError, "Failed to fetch absensi", err.Error())
 	}
@@ -187,7 +240,7 @@ func (s *AbsensiService) GetAbsensiByMahasantriID(c *fiber.Ctx) error {
 		return utils.ResponseError(c, fiber.StatusInternalServerError, "Failed to fetch total alpa", err.Error())
 	}
 
-	// Calculate total absensi for "shubuh" and "isya"
+	//! Calculate total absensi for "shubuh" and "isya"
 	// Calculate total hadir shubuh
 	if err := s.DB.Model(&models.Absensi{}).Where("mahasantri_id = ?", mahasantriID).
 		Where("waktu = ?", "shubuh").
@@ -290,24 +343,36 @@ func (s *AbsensiService) GetAbsensiByMahasantriID(c *fiber.Ctx) error {
 		}
 	}
 
-	// Return response with calculated totals
+	// Calculate total pages
+	totalPages := int(math.Ceil(float64(totalAbsensi) / float64(limit)))
+
+	// Return response with pagination info
 	return utils.SuccessResponse(c, fiber.StatusOK, "Absensi retrieved successfully", fiber.Map{
-		"absensi":                 response,
-		"total_hadir":             totalHadir,
-		"total_izin":              totalIzin,
-		"total_alpa":              totalAlpa,
-		"total_hadir_shubuh":      totalHadirShubuh,
-		"total_hadir_isya":        totalHadirIsya,
-		"total_izin_shubuh":       totalIzinShubuh,
-		"total_izin_isya":         totalIzinIsya,
-		"total_alpa_shubuh":       totalAlpaShubuh,
-		"total_alpa_isya":         totalAlpaIsya,
-		"total_absensi_per_week":  totalAbsensiPerWeek,
-		"total_absensi_per_month": totalAbsensiPerMonth,
+		"absensi":     response,
+		"total_hadir": totalHadir,
+		"total_izin":  totalIzin,
+		"total_alpa":  totalAlpa,
+		"pagination": fiber.Map{
+			"current_page":  page,
+			"total_absensi": totalAbsensi,
+			"total_pages":   totalPages,
+			"limit":         limit,
+		},
 	})
 }
 
-// GetAttendancePerMonth - Mengambil total kehadiran per bulan berdasarkan Mahasantri ID
+// GetAttendancePerMonth godoc
+// @Summary Mendapatkan ringkasan absensi bulanan Mahasantri
+// @Description Mengambil total absensi bulanan berdasarkan waktu (shubuh & isya) dan status (hadir, izin, alpa) dalam satu bulan tertentu.
+// @Tags Absensi
+// @Security BearerAuth
+// @Param mahasantri_id path int true "ID Mahasantri"
+// @Param month query string true "Bulan (format: MM, contoh: 04 untuk April)"
+// @Param year query string true "Tahun (format: YYYY, contoh: 2025)"
+// @Success 200 {object} utils.SuccessResponseSwagger{data=dto.AbsensiMonthlySummaryDTO} "Berhasil mengambil ringkasan absensi bulanan"
+// @Failure 400 {object} utils.ErrorResponseSwagger "Bad Request - Format salah atau parameter tidak lengkap"
+// @Failure 500 {object} utils.ErrorResponseSwagger "Internal Server Error - Gagal mengambil data absensi"
+// @Router /api/v1/absensi/mahasantri/{mahasantri_id}/per-month [get]
 func (s *AbsensiService) GetAttendancePerMonth(c *fiber.Ctx) error {
 	id := c.Params("mahasantri_id")
 
@@ -320,156 +385,160 @@ func (s *AbsensiService) GetAttendancePerMonth(c *fiber.Ctx) error {
 		return utils.ResponseError(c, fiber.StatusBadRequest, "Invalid Mahasantri ID format", err.Error())
 	}
 
-	startDate := c.Query("start_date")
-	endDate := c.Query("end_date")
+	monthStr := c.Query("month") // format: 04
+	yearStr := c.Query("year")   // format: 2025
+
+	if monthStr == "" || yearStr == "" {
+		return utils.ResponseError(c, fiber.StatusBadRequest, "Missing query parameters", "month and year are required")
+	}
 
 	layout := "02-01-2006"
-	var start, end time.Time
+	location := time.Now().Location()
+	startDate, err := time.ParseInLocation(layout, fmt.Sprintf("01-%s-%s", monthStr, yearStr), location)
+	if err != nil {
+		return utils.ResponseError(c, fiber.StatusBadRequest, "Invalid date format", err.Error())
+	}
+	endDate := startDate.AddDate(0, 1, -1)
 
-	if startDate != "" {
-		start, err = time.Parse(layout, startDate)
-		if err != nil {
-			return utils.ResponseError(c, fiber.StatusBadRequest, "Invalid start date format", err.Error())
-		}
+	// Get numeric month & year
+	monthInt, _ := strconv.Atoi(monthStr)
+	yearInt, _ := strconv.Atoi(yearStr)
+
+	// Query attendance grouped by waktu and status
+	type Result struct {
+		Waktu  string
+		Status string
+		Count  int64
 	}
 
-	if endDate != "" {
-		end, err = time.Parse(layout, endDate)
-		if err != nil {
-			return utils.ResponseError(c, fiber.StatusBadRequest, "Invalid end date format", err.Error())
-		}
-		end = end.Add(24*time.Hour - time.Second) // Ensure the end date includes the whole day
-	}
-
-	// Query to get absensi per month
-	var absensiPerMonth []struct {
-		Month string `json:"month"`
-		Year  int    `json:"year"`
-	}
-
-	// Main query for filtering by Mahasantri ID, status = "hadir"
-	query := s.DB.Model(&models.Absensi{}).
+	var results []Result
+	if err := s.DB.Model(&models.Absensi{}).
+		Select("waktu, status, COUNT(*) as count").
 		Where("mahasantri_id = ?", mahasantriID).
-		Where("status = ?", "hadir").
-		Select("EXTRACT(MONTH FROM tanggal) AS month, EXTRACT(YEAR FROM tanggal) AS year").
-		Group("year, month").
-		Order("year DESC, month DESC")
-
-	// Apply date filtering if present
-	if !start.IsZero() && !end.IsZero() {
-		query = query.Where("tanggal BETWEEN ? AND ?", start, end)
+		Where("tanggal BETWEEN ? AND ?", startDate, endDate).
+		Group("waktu, status").
+		Scan(&results).Error; err != nil {
+		logrus.WithError(err).Error("Failed to fetch attendance data")
+		return utils.ResponseError(c, fiber.StatusInternalServerError, "Failed to fetch attendance data", err.Error())
 	}
 
-	if err := query.Scan(&absensiPerMonth).Error; err != nil {
-		logrus.WithError(err).Error("Failed to fetch attendance per month")
-		return utils.ResponseError(c, fiber.StatusInternalServerError, "Failed to fetch attendance per month", err.Error())
+	// Initialize counts
+	response := fiber.Map{
+		"month":       time.Month(monthInt).String(),
+		"year":        yearInt,
+		"total_hadir": 0,
+		"total_izin":  0,
+		"total_alpa":  0,
+		"shubuh": fiber.Map{
+			"hadir": 0, "izin": 0, "alpa": 0,
+		},
+		"isya": fiber.Map{
+			"hadir": 0, "izin": 0, "alpa": 0,
+		},
 	}
 
-	// Mapping numeric month to month name
-	monthNames := map[string]string{
-		"1": "January", "2": "February", "3": "March", "4": "April",
-		"5": "May", "6": "June", "7": "July", "8": "August",
-		"9": "September", "10": "October", "11": "November", "12": "December",
+	for _, r := range results {
+		// Validate waktu & status
+		if r.Waktu != "shubuh" && r.Waktu != "isya" {
+			continue
+		}
+		if r.Status != "hadir" && r.Status != "izin" && r.Status != "alpa" {
+			continue
+		}
+
+		// Set ke map
+		if _, ok := response[r.Waktu].(fiber.Map); ok {
+			response[r.Waktu].(fiber.Map)[r.Status] = r.Count
+		}
+
+		// Tambah total per status
+		switch r.Status {
+		case "hadir":
+			response["total_hadir"] = response["total_hadir"].(int) + int(r.Count)
+		case "izin":
+			response["total_izin"] = response["total_izin"].(int) + int(r.Count)
+		case "alpa":
+			response["total_alpa"] = response["total_alpa"].(int) + int(r.Count)
+		}
 	}
 
-	var attendanceData []fiber.Map
-	var totalAttendance int64
+	return utils.SuccessResponse(c, fiber.StatusOK, "Attendance per month retrieved successfully", response)
+}
 
-	// Loop through the months and calculate total counts for each status (Hadir, Izin, Alpa)
-	for _, item := range absensiPerMonth {
-		var countHadirShubuh, countHadirIsya int64
-		var countIzinShubuh, countIzinIsya int64
-		var countAlpaShubuh, countAlpaIsya int64
+// GetAbsensiDailySummary godoc
+// @Summary Mendapatkan ringkasan absensi harian Mahasantri
+// @Description Mengambil data absensi harian Mahasantri selama 1 bulan berdasarkan waktu shubuh dan isya. Data akan mengisi status absen per hari, default "belum-absen" jika belum mengisi.
+// @Tags Absensi
+// @Security BearerAuth
+// @Param mahasantri_id path int true "ID Mahasantri"
+// @Param month query string true "Bulan (format: MM, contoh: 04 untuk April)"
+// @Param year query string true "Tahun (format: YYYY, contoh: 2025)"
+// @Success 200 {object} utils.SuccessResponseSwagger{data=[]dto.AbsensiDailySummaryDTO} "Berhasil mengambil ringkasan absensi harian"
+// @Failure 400 {object} utils.ErrorResponseSwagger "Bad Request - Format salah atau parameter tidak lengkap"
+// @Failure 500 {object} utils.ErrorResponseSwagger "Internal Server Error - Gagal mengambil data absensi"
+// @Router /api/v1/absensi/mahasantri/{mahasantri_id}/daily-summary [get]
+func (s *AbsensiService) GetAbsensiDailySummary(c *fiber.Ctx) error {
+	id := c.Params("mahasantri_id")
+	mahasantriID, err := strconv.ParseUint(id, 10, 64)
+	if err != nil {
+		return utils.ResponseError(c, fiber.StatusBadRequest, "Invalid Mahasantri ID format", err.Error())
+	}
 
-		// Calculate total "hadir" for Shubuh
-		if err := s.DB.Model(&models.Absensi{}).
-			Where("mahasantri_id = ?", mahasantriID).
-			Where("EXTRACT(MONTH FROM tanggal) = ?", item.Month).
-			Where("EXTRACT(YEAR FROM tanggal) = ?", item.Year).
-			Where("waktu = ?", "shubuh").
-			Where("status = ?", "hadir").
-			Count(&countHadirShubuh).Error; err != nil {
-			logrus.WithError(err).Error("Failed to count hadir shubuh attendance for month")
-			return utils.ResponseError(c, fiber.StatusInternalServerError, "Failed to count hadir shubuh attendance for month", err.Error())
+	month := c.Query("month") // ex: 04
+	year := c.Query("year")   // ex: 2025
+
+	if month == "" || year == "" {
+		return utils.ResponseError(c, fiber.StatusBadRequest, "Missing query parameters", "month and year are required")
+	}
+
+	layout := "02-01-2006"
+	location := time.Now().Location()
+	startDate, err := time.ParseInLocation("02-01-2006", fmt.Sprintf("01-%s-%s", month, year), location)
+	if err != nil {
+		return utils.ResponseError(c, fiber.StatusBadRequest, "Invalid date format", err.Error())
+	}
+	endDate := startDate.AddDate(0, 1, -1)
+
+	// Fetch all absensi for that month
+	var absensi []models.Absensi
+	if err := s.DB.Where("mahasantri_id = ?", mahasantriID).
+		Where("tanggal BETWEEN ? AND ?", startDate, endDate).
+		Find(&absensi).Error; err != nil {
+		return utils.ResponseError(c, fiber.StatusInternalServerError, "Failed to fetch absensi", err.Error())
+	}
+
+	// Indexing absensi per tanggal & waktu
+	absensiMap := make(map[string]map[string]string) // tanggal -> waktu -> status
+	for _, a := range absensi {
+		tanggal := a.Tanggal.Format(layout)
+		if _, ok := absensiMap[tanggal]; !ok {
+			absensiMap[tanggal] = make(map[string]string)
+		}
+		absensiMap[tanggal][a.Waktu] = a.Status
+	}
+
+	// Build daily summary
+	var summary []dto.AbsensiDailySummaryDTO
+	for d := startDate; !d.After(endDate); d = d.AddDate(0, 0, 1) {
+		tanggal := d.Format(layout)
+		shubuh := "belum-absen"
+		isya := "belum-absen"
+
+		if data, ok := absensiMap[tanggal]; ok {
+			if val, exists := data["shubuh"]; exists {
+				shubuh = val
+			}
+			if val, exists := data["isya"]; exists {
+				isya = val
+			}
 		}
 
-		// Calculate total "hadir" for Isya
-		if err := s.DB.Model(&models.Absensi{}).
-			Where("mahasantri_id = ?", mahasantriID).
-			Where("EXTRACT(MONTH FROM tanggal) = ?", item.Month).
-			Where("EXTRACT(YEAR FROM tanggal) = ?", item.Year).
-			Where("waktu = ?", "isya").
-			Where("status = ?", "hadir").
-			Count(&countHadirIsya).Error; err != nil {
-			logrus.WithError(err).Error("Failed to count hadir isya attendance for month")
-			return utils.ResponseError(c, fiber.StatusInternalServerError, "Failed to count hadir isya attendance for month", err.Error())
-		}
-
-		// Calculate total "izin" for Shubuh
-		if err := s.DB.Model(&models.Absensi{}).
-			Where("mahasantri_id = ?", mahasantriID).
-			Where("EXTRACT(MONTH FROM tanggal) = ?", item.Month).
-			Where("EXTRACT(YEAR FROM tanggal) = ?", item.Year).
-			Where("waktu = ?", "shubuh").
-			Where("status = ?", "izin").
-			Count(&countIzinShubuh).Error; err != nil {
-			logrus.WithError(err).Error("Failed to count izin shubuh attendance for month")
-			return utils.ResponseError(c, fiber.StatusInternalServerError, "Failed to count izin shubuh attendance for month", err.Error())
-		}
-
-		// Calculate total "izin" for Isya
-		if err := s.DB.Model(&models.Absensi{}).
-			Where("mahasantri_id = ?", mahasantriID).
-			Where("EXTRACT(MONTH FROM tanggal) = ?", item.Month).
-			Where("EXTRACT(YEAR FROM tanggal) = ?", item.Year).
-			Where("waktu = ?", "isya").
-			Where("status = ?", "izin").
-			Count(&countIzinIsya).Error; err != nil {
-			logrus.WithError(err).Error("Failed to count izin isya attendance for month")
-			return utils.ResponseError(c, fiber.StatusInternalServerError, "Failed to count izin isya attendance for month", err.Error())
-		}
-
-		// Calculate total "alpa" for Shubuh
-		if err := s.DB.Model(&models.Absensi{}).
-			Where("mahasantri_id = ?", mahasantriID).
-			Where("EXTRACT(MONTH FROM tanggal) = ?", item.Month).
-			Where("EXTRACT(YEAR FROM tanggal) = ?", item.Year).
-			Where("waktu = ?", "shubuh").
-			Where("status = ?", "alpa").
-			Count(&countAlpaShubuh).Error; err != nil {
-			logrus.WithError(err).Error("Failed to count alpa shubuh attendance for month")
-			return utils.ResponseError(c, fiber.StatusInternalServerError, "Failed to count alpa shubuh attendance for month", err.Error())
-		}
-
-		// Calculate total "alpa" for Isya
-		if err := s.DB.Model(&models.Absensi{}).
-			Where("mahasantri_id = ?", mahasantriID).
-			Where("EXTRACT(MONTH FROM tanggal) = ?", item.Month).
-			Where("EXTRACT(YEAR FROM tanggal) = ?", item.Year).
-			Where("waktu = ?", "isya").
-			Where("status = ?", "alpa").
-			Count(&countAlpaIsya).Error; err != nil {
-			logrus.WithError(err).Error("Failed to count alpa isya attendance for month")
-			return utils.ResponseError(c, fiber.StatusInternalServerError, "Failed to count alpa isya attendance for month", err.Error())
-		}
-
-		attendanceData = append(attendanceData, fiber.Map{
-			"month":        monthNames[item.Month],
-			"year":         item.Year,
-			"hadir_shubuh": countHadirShubuh,
-			"hadir_isya":   countHadirIsya,
-			"izin_shubuh":  countIzinShubuh,
-			"izin_isya":    countIzinIsya,
-			"alpa_shubuh":  countAlpaShubuh,
-			"alpa_isya":    countAlpaIsya,
+		summary = append(summary, dto.AbsensiDailySummaryDTO{
+			Tanggal: tanggal,
+			Shubuh:  shubuh,
+			Isya:    isya,
 		})
-
-		totalAttendance += countHadirShubuh + countHadirIsya + countIzinShubuh + countIzinIsya + countAlpaShubuh + countAlpaIsya
 	}
 
-	return utils.SuccessResponse(c, fiber.StatusOK, "Attendance per month retrieved successfully", fiber.Map{
-		"mahasantri_id":        mahasantriID,
-		"attendance_per_month": attendanceData,
-		"total_attendance":     totalAttendance,
-	})
+	return utils.SuccessResponse(c, fiber.StatusOK, "Daily summary retrieved successfully", summary)
 }

@@ -1,6 +1,7 @@
 package services
 
 import (
+	"math"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
@@ -15,12 +16,36 @@ type MahasantriService struct {
 	DB *gorm.DB
 }
 
-// GetAllMahasantri - Mengambil semua mahasantri (Hanya untuk mentor)
+// GetAllMahasantri - Mengambil semua mahasantri dengan pagination (Hanya untuk mentor)
+// @Summary Get All Mahasantri
+// @Description Get a list of all Mahasantri with pagination, only accessible by mentor
+// @Tags Mahasantri
+// @Accept json
+// @Produce json
+// @Param page query int false "Page number" default(1)
+// @Param limit query int false "Limit per page" default(10)
+// @Security BearerAuth
+// @Success 200 {object} utils.Response{data=[]dto.MahasantriResponse,pagination=utils.Pagination} "Mahasantri retrieved successfully"
+// @Failure 400 {object} utils.Response "Invalid request"
+// @Failure 500 {object} utils.Response "Internal server error"
+// @Router /api/v1/mahasantri [get]
 func (s *MahasantriService) GetAllMahasantri(c *fiber.Ctx) error {
-	var mahasantri []models.Mahasantri
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	limit, _ := strconv.Atoi(c.Query("limit", "10"))
+	if page < 1 {
+		page = 1
+	}
+	offset := (page - 1) * limit
 
-	// Preload Mentor jika ingin menampilkan informasi mentornya juga
-	if err := s.DB.Preload("Mentor").Find(&mahasantri).Error; err != nil {
+	var totalMahasantri int64
+	// Hitung total Mahasantri untuk pagination
+	s.DB.Model(&models.Mahasantri{}).Count(&totalMahasantri)
+
+	var mahasantri []models.Mahasantri
+	// Preload Mentor jika ingin menampilkan informasi mentornya juga, dan paginate
+	if err := s.DB.Preload("Mentor").
+		Limit(limit).Offset(offset).
+		Find(&mahasantri).Error; err != nil {
 		logrus.WithError(err).Error("Failed to fetch mahasantri")
 		return utils.ResponseError(c, fiber.StatusInternalServerError, "Failed to fetch mahasantri", err.Error())
 	}
@@ -37,11 +62,34 @@ func (s *MahasantriService) GetAllMahasantri(c *fiber.Ctx) error {
 		}
 	}
 
-	logrus.Info("Mahasantri retrieved successfully")
-	return utils.SuccessResponse(c, fiber.StatusOK, "Mahasantri retrieved successfully", response)
+	logrus.WithFields(logrus.Fields{
+		"page":  page,
+		"limit": limit,
+	}).Info("Paginated mahasantri retrieved successfully")
+
+	// Return response dengan pagination informasi
+	return utils.SuccessResponse(c, fiber.StatusOK, "Mahasantri retrieved successfully", fiber.Map{
+		"pagination": fiber.Map{
+			"current_page":     page,
+			"total_mahasantri": totalMahasantri,
+			"total_pages":      int(math.Ceil(float64(totalMahasantri) / float64(limit))),
+		},
+		"mahasantri": response,
+	})
 }
 
 // GetMahasantriByID - Mengambil mahasantri berdasarkan ID
+// @Summary Mengambil mahasantri berdasarkan ID
+// @Description Mendapatkan data mahasantri dengan mencocokkan ID yang diberikan.
+// @Tags Mahasantri
+// @Accept json
+// @Produce json
+// @Param id path int true "ID Mahasantri"
+// @Success 200 {object} dto.MahasantriResponse "Mahasantri ditemukan"
+// @Failure 400 {object} utils.Response "Invalid ID format"
+// @Failure 404 {object} utils.Response "Mahasantri not found"
+// @Security BearerAuth
+// @Router /api/v1/mahasantri/{id} [get]
 func (s *MahasantriService) GetMahasantriByID(c *fiber.Ctx) error {
 	id := c.Params("id")
 
@@ -73,6 +121,17 @@ func (s *MahasantriService) GetMahasantriByID(c *fiber.Ctx) error {
 }
 
 // GetMahasantriByMentorID - Mengambil semua mahasantri berdasarkan mentor_id (Hanya untuk mentor)
+// @Summary Mengambil semua mahasantri berdasarkan mentor_id
+// @Description Mengambil data mahasantri yang memiliki mentor_id yang sesuai dengan parameter mentor_id.
+// @Tags Mahasantri
+// @Accept json
+// @Produce json
+// @Param mentor_id path int true "ID Mentor"
+// @Success 200 {array} dto.MahasantriResponse "List of Mahasantri"
+// @Failure 400 {object} utils.Response "Invalid mentor ID format"
+// @Failure 500 {object} utils.Response "Failed to fetch mahasantri for mentor"
+// @Security BearerAuth
+// @Router /api/v1/mahasantri/mentor/{mentor_id} [get]
 func (s *MahasantriService) GetMahasantriByMentorID(c *fiber.Ctx) error {
 	mentorID := c.Params("mentor_id")
 
@@ -107,6 +166,19 @@ func (s *MahasantriService) GetMahasantriByMentorID(c *fiber.Ctx) error {
 }
 
 // UpdateMahasantri - Memperbarui data mahasantri berdasarkan ID (Hanya untuk mentor)
+// @Summary Memperbarui data mahasantri berdasarkan ID
+// @Description Memperbarui data mahasantri seperti nama, NIM, jurusan, dan gender berdasarkan ID. Hanya dapat diakses oleh mentor.
+// @Tags Mahasantri
+// @Accept json
+// @Produce json
+// @Param id path int true "Mahasantri ID"
+// @Param updateMahasantriRequest body dto.UpdateMahasantriRequest true "Data yang ingin diperbarui"
+// @Success 200 {object} dto.MahasantriResponse "Mahasantri updated successfully"
+// @Failure 400 {object} utils.Response "Invalid request body or No changes detected"
+// @Failure 404 {object} utils.Response "Mahasantri not found"
+// @Failure 500 {object} utils.Response "Failed to update mahasantri"
+// @Security BearerAuth
+// @Router /api/v1/mahasantri/{id} [put]
 func (s *MahasantriService) UpdateMahasantri(c *fiber.Ctx) error {
 	id := c.Params("id")
 	var mahasantri models.Mahasantri
@@ -170,6 +242,17 @@ func (s *MahasantriService) UpdateMahasantri(c *fiber.Ctx) error {
 }
 
 // DeleteMahasantri - Menghapus mahasantri berdasarkan ID (Hanya untuk mentor)
+// @Summary Menghapus mahasantri berdasarkan ID
+// @Description Menghapus data mahasantri berdasarkan ID. Hanya dapat diakses oleh mentor.
+// @Tags Mahasantri
+// @Accept json
+// @Produce json
+// @Param id path int true "Mahasantri ID"
+// @Success 200 {object} utils.Response "Mahasantri deleted successfully"
+// @Failure 404 {object} utils.Response "Mahasantri not found"
+// @Failure 500 {object} utils.Response "Failed to delete mahasantri"
+// @Security BearerAuth
+// @Router /api/v1/mahasantri/{id} [delete]
 func (s *MahasantriService) DeleteMahasantri(c *fiber.Ctx) error {
 	id := c.Params("id")
 	var mahasantri models.Mahasantri

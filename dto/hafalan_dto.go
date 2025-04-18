@@ -6,7 +6,7 @@ type CreateHafalanRequest struct {
 	Halaman      string  `json:"halaman" validate:"required"`
 	TotalSetoran float32 `json:"total_setoran" validate:"required,min=0"`
 	Kategori     string  `json:"kategori" validate:"required,oneof=ziyadah murojaah"`
-	Waktu        string  `json:"waktu" validate:"required,oneof=subuh isya"`
+	Waktu        string  `json:"waktu" validate:"required,oneof=shubuh isya"`
 	Catatan      string  `json:"catatan,omitempty"`
 }
 
