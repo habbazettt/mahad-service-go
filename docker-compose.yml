@@ -1,5 +1,5 @@
 services:
-  app:
+  golang-backend:
     build: .
     container_name: mahad_backend
     restart: always
