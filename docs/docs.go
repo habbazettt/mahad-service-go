@@ -312,6 +312,58 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/auth/forgot-password": {
+            "post": {
+                "description": "Endpoint untuk mengupdate password untuk Mahasantri atau Mentor berdasarkan NIM atau Email",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Forgot Password",
+                "parameters": [
+                    {
+                        "description": "Data untuk reset password",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.ForgotPasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/utils.SuccessExample"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorExample"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorExample"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorExample"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/auth/login/mahasantri": {
             "post": {
                 "description": "Melakukan login untuk mahasantri dengan NIM dan password",
@@ -399,6 +451,35 @@ const docTemplate = `{
                         "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/utils.ErrorLoginMentorExample"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/logout": {
+            "post": {
+                "description": "Endpoint untuk logout dan menghapus token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Logout",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/utils.SuccessExample"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorExample"
                         }
                     }
                 }
@@ -1578,6 +1659,24 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.ForgotPasswordRequest": {
+            "type": "object",
+            "required": [
+                "new_password"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "new_password": {
+                    "type": "string",
+                    "minLength": 6
+                },
+                "nim": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.LoginMahasantriRequest": {
             "type": "object",
             "required": [
@@ -1589,7 +1688,8 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "password": {
-                    "type": "string"
+                    "type": "string",
+                    "minLength": 6
                 }
             }
         },
@@ -1604,7 +1704,8 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "password": {
-                    "type": "string"
+                    "type": "string",
+                    "minLength": 6
                 }
             }
         },
@@ -1679,7 +1780,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "mentor_id": {
-                    "description": "Mentor yang membimbing",
                     "type": "integer"
                 },
                 "nama": {

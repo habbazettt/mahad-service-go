@@ -263,6 +263,92 @@ func (s *AuthService) LoginMahasantri(c *fiber.Ctx) error {
 	})
 }
 
+// ForgotPassword godoc
+// @Summary Forgot Password
+// @Description Endpoint untuk mengupdate password untuk Mahasantri atau Mentor berdasarkan NIM atau Email
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param body body dto.ForgotPasswordRequest true "Data untuk reset password"
+// @Success 200 {object} utils.SuccessExample
+// @Failure 400 {object} utils.ErrorExample
+// @Failure 404 {object} utils.ErrorExample
+// @Failure 500 {object} utils.ErrorExample
+// @Router /api/v1/auth/forgot-password [post]
+func (s *AuthService) ForgotPassword(c *fiber.Ctx) error {
+	var req dto.ForgotPasswordRequest
+
+	if err := c.BodyParser(&req); err != nil {
+		return utils.ResponseError(c, fiber.StatusBadRequest, "Invalid request body", err.Error())
+	}
+
+	if req.Email == "" && req.NIM == "" {
+		return utils.ResponseError(c, fiber.StatusBadRequest, "Email or NIM is required", nil)
+	}
+
+	hashed, err := utils.HashPassword(req.NewPassword)
+	if err != nil {
+		return utils.ResponseError(c, fiber.StatusInternalServerError, "Failed to hash password", err.Error())
+	}
+
+	if req.Email != "" {
+		var mentor models.Mentor
+		if err := s.DB.Where("email = ?", req.Email).First(&mentor).Error; err != nil {
+			return utils.ResponseError(c, fiber.StatusNotFound, "Mentor not found", nil)
+		}
+		mentor.Password = hashed
+		s.DB.Save(&mentor)
+		return utils.SuccessResponse(c, fiber.StatusOK, "Password updated successfully", map[string]interface{}{
+			"email":        mentor.Email,
+			"new_password": req.NewPassword, // Kembalikan password baru
+		})
+	}
+
+	if req.NIM != "" {
+		var mahasantri models.Mahasantri
+		if err := s.DB.Where("nim = ?", req.NIM).First(&mahasantri).Error; err != nil {
+			return utils.ResponseError(c, fiber.StatusNotFound, "Mahasantri not found", nil)
+		}
+		mahasantri.Password = hashed
+		s.DB.Save(&mahasantri)
+		return utils.SuccessResponse(c, fiber.StatusOK, "Password updated successfully", map[string]interface{}{
+			"nim":          mahasantri.NIM,
+			"new_password": req.NewPassword, // Kembalikan password baru
+		})
+	}
+
+	return utils.ResponseError(c, fiber.StatusBadRequest, "Invalid request", nil)
+}
+
+// Logout godoc
+// @Summary Logout
+// @Description Endpoint untuk logout dan menghapus token
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Success 200 {object} utils.SuccessExample
+// @Failure 400 {object} utils.ErrorExample
+// @Router /api/v1/auth/logout [post]
+func (s *AuthService) Logout(c *fiber.Ctx) error {
+	// Mendapatkan claims dari token JWT yang sudah terverifikasi
+	claims := c.Locals("user").(*utils.Claims)
+
+	// Logging untuk mencatat bahwa pengguna berhasil logout
+	logrus.WithFields(logrus.Fields{
+		"user_id": claims.ID,
+		"role":    claims.Role,
+	}).Info("User logged out successfully")
+
+	// Menghapus token hanya dilakukan di sisi klien (frontend)
+	// Pada sisi server, tidak ada sesi atau data yang perlu dihapus
+	// Karena JWT tidak disimpan di server, maka tidak ada aksi yang perlu dilakukan di backend selain mengirim response
+
+	return utils.SuccessResponse(c, fiber.StatusOK, "Successfully logged out", map[string]interface{}{
+		"user_id": claims.ID,
+		"role":    claims.Role,
+	})
+}
+
 // GetCurrentUser godoc
 // @Summary Get current user data
 // @Description Mengambil data user yang sedang login (baik Mentor atau Mahasantri)

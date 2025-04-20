@@ -16,6 +16,8 @@ func SetupAuthRoutes(app *fiber.App, db *gorm.DB) {
 		auth.Post("/register/mentor", services.RegisterMentor)
 		auth.Post("/login/mahasantri", services.LoginMahasantri)
 		auth.Post("/login/mentor", services.LoginMentor)
+		auth.Post("/forget-password", services.ForgotPassword)
+		auth.Post("/logout", middleware.JWTMiddleware, services.Logout)
 		auth.Get("/me", middleware.JWTMiddleware, services.GetCurrentUser)
 	}
 }

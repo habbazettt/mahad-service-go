@@ -6,7 +6,7 @@ type RegisterMahasantriRequest struct {
 	Jurusan  string `json:"jurusan" validate:"required"`
 	Gender   string `json:"gender" validate:"required,oneof=L P"`
 	Password string `json:"password" validate:"required,min=6"`
-	MentorID uint   `json:"mentor_id" validate:"required"` // Mentor yang membimbing
+	MentorID uint   `json:"mentor_id" validate:"required"`
 }
 
 type RegisterMentorRequest struct {
@@ -18,12 +18,18 @@ type RegisterMentorRequest struct {
 
 type LoginMahasantriRequest struct {
 	NIM      string `json:"nim" validate:"required"`
-	Password string `json:"password" validate:"required"`
+	Password string `json:"password" validate:"required,min=6"`
 }
 
 type LoginMentorRequest struct {
 	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required"`
+	Password string `json:"password" validate:"required,min=6"`
+}
+
+type ForgotPasswordRequest struct {
+	NIM         string `json:"nim,omitempty"`
+	Email       string `json:"email,omitempty"`
+	NewPassword string `json:"new_password" validate:"required,min=6"`
 }
 
 type AuthResponse struct {

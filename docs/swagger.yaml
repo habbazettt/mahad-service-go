@@ -85,11 +85,24 @@ definitions:
     - total_setoran
     - waktu
     type: object
+  dto.ForgotPasswordRequest:
+    properties:
+      email:
+        type: string
+      new_password:
+        minLength: 6
+        type: string
+      nim:
+        type: string
+    required:
+    - new_password
+    type: object
   dto.LoginMahasantriRequest:
     properties:
       nim:
         type: string
       password:
+        minLength: 6
         type: string
     required:
     - nim
@@ -100,6 +113,7 @@ definitions:
       email:
         type: string
       password:
+        minLength: 6
         type: string
     required:
     - email
@@ -147,7 +161,6 @@ definitions:
       jurusan:
         type: string
       mentor_id:
-        description: Mentor yang membimbing
         type: integer
       nama:
         type: string
@@ -568,6 +581,41 @@ paths:
       summary: Mendapatkan ringkasan absensi bulanan Mahasantri
       tags:
       - Absensi
+  /api/v1/auth/forgot-password:
+    post:
+      consumes:
+      - application/json
+      description: Endpoint untuk mengupdate password untuk Mahasantri atau Mentor
+        berdasarkan NIM atau Email
+      parameters:
+      - description: Data untuk reset password
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ForgotPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.SuccessExample'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.ErrorExample'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.ErrorExample'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.ErrorExample'
+      summary: Forgot Password
+      tags:
+      - Auth
   /api/v1/auth/login/mahasantri:
     post:
       consumes:
@@ -626,6 +674,25 @@ paths:
           schema:
             $ref: '#/definitions/utils.ErrorLoginMentorExample'
       summary: Login Mentor
+      tags:
+      - Auth
+  /api/v1/auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: Endpoint untuk logout dan menghapus token
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.SuccessExample'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.ErrorExample'
+      summary: Logout
       tags:
       - Auth
   /api/v1/auth/me:
