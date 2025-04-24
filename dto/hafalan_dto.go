@@ -2,6 +2,7 @@ package dto
 
 type CreateHafalanRequest struct {
 	MahasantriID uint    `json:"mahasantri_id" validate:"required"`
+	MentorID     uint    `json:"mentor_id" validate:"required"`
 	Juz          int     `json:"juz" validate:"required,min=1,max=30"`
 	Halaman      string  `json:"halaman" validate:"required"`
 	TotalSetoran float32 `json:"total_setoran" validate:"required,min=0"`
@@ -22,6 +23,7 @@ type UpdateHafalanRequest struct {
 type HafalanResponse struct {
 	ID           uint    `json:"id"`
 	MahasantriID uint    `json:"mahasantri_id"`
+	MentorID     uint    `json:"mentor_id"`
 	Juz          int     `json:"juz"`
 	Halaman      string  `json:"halaman"`
 	TotalSetoran float32 `json:"total_setoran"`

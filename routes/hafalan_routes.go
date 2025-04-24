@@ -16,6 +16,7 @@ func SetupHafalanRoutes(app *fiber.App, db *gorm.DB) {
 		hafalanRoutes.Get("/", middleware.RoleMiddleware("mentor"), service.GetAllHafalan)
 		hafalanRoutes.Get("/:id", middleware.RoleMiddleware("mentor"), service.GetHafalanByID)
 		hafalanRoutes.Get("/mahasantri/:mahasantri_id", middleware.RoleMiddleware("mentor", "mahasantri"), service.GetHafalanByMahasantriID)
+		hafalanRoutes.Get("/mentor/:mentor_id", middleware.RoleMiddleware("mentor"), service.GetHafalanByMentorID)
 		hafalanRoutes.Get("/:mahasantri_id/kategori", middleware.RoleMiddleware("mentor"), service.GetHafalanByKategori)
 		hafalanRoutes.Put("/:id", middleware.RoleMiddleware("mentor"), service.UpdateHafalan)
 		hafalanRoutes.Delete("/:id", middleware.RoleMiddleware("mentor"), service.DeleteHafalan)

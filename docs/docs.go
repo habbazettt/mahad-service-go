@@ -808,6 +808,92 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/hafalan/mentor/{mentor_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Endpoint ini digunakan untuk mengambil data hafalan berdasarkan MentorID, dengan dukungan filtering berdasarkan kategori dan juz serta pagination.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Hafalan"
+                ],
+                "summary": "Mengambil semua hafalan berdasarkan MentorID dengan pagination dan filtering",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID Mentor",
+                        "name": "mentor_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "ziyadah",
+                            "murojaah"
+                        ],
+                        "type": "string",
+                        "description": "Filter by kategori",
+                        "name": "kategori",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "1, 2",
+                        "description": "Filter by juz",
+                        "name": "juz",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number for pagination",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Number of items per page",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Hafalan fetched successfully",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Mentor or Mahasantri not found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to fetch hafalan",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/hafalan/{id}": {
             "get": {
                 "security": [
@@ -1071,6 +1157,12 @@ const docTemplate = `{
                         "default": 10,
                         "description": "Limit per page",
                         "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search by name",
+                        "name": "name",
                         "in": "query"
                     }
                 ],
@@ -1621,6 +1713,7 @@ const docTemplate = `{
                 "juz",
                 "kategori",
                 "mahasantri_id",
+                "mentor_id",
                 "total_setoran",
                 "waktu"
             ],
@@ -1644,6 +1737,9 @@ const docTemplate = `{
                     ]
                 },
                 "mahasantri_id": {
+                    "type": "integer"
+                },
+                "mentor_id": {
                     "type": "integer"
                 },
                 "total_setoran": {

@@ -2,29 +2,22 @@ package models
 
 import (
 	"time"
-
-	"gorm.io/gorm"
 )
 
 type Absensi struct {
-	ID           uint           `gorm:"primaryKey" json:"id"`
-	MahasantriID uint           `gorm:"not null" json:"mahasantri_id"`           // Relasi ke Mahasantri
-	MentorID     uint           `gorm:"not null" json:"mentor_id"`               // Relasi ke Mentor
-	Waktu        string         `gorm:"type:varchar(10);not null" json:"waktu"`  // "Shubuh" atau "Isya"
-	Status       string         `gorm:"type:varchar(10);not null" json:"status"` // "Hadir", "Tidak Hadir"
-	Tanggal      time.Time      `gorm:"type:date;not null" json:"tanggal"`       // Tanggal absensi (otomatis berdasarkan hari)
-	CreatedAt    time.Time      `json:"created_at"`
-	UpdatedAt    time.Time      `json:"updated_at"`
-	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`
+	ID           uint      `gorm:"primaryKey" json:"id"`
+	MahasantriID uint      `gorm:"not null" json:"mahasantri_id"`
+	MentorID     uint      `gorm:"not null" json:"mentor_id"`
+	Waktu        string    `gorm:"type:varchar(10);not null" json:"waktu"`
+	Status       string    `gorm:"type:varchar(10);not null" json:"status"`
+	Tanggal      time.Time `gorm:"type:date;not null" json:"tanggal"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 
-	// Relasi ke Mentor
-	Mentor Mentor `gorm:"foreignKey:MentorID" json:"mentor"`
-
-	// Relasi ke Mahasantri
-	Mahasantri Mahasantri `gorm:"foreignKey:MahasantriID" json:"mahasantri"`
+	Mentor     Mentor     `gorm:"foreignKey:MentorID;constraint:OnDelete:CASCADE;" json:"mentor"`
+	Mahasantri Mahasantri `gorm:"foreignKey:MahasantriID;constraint:OnDelete:CASCADE;" json:"mahasantri"`
 }
 
-// Custom method untuk format tanggal
 func (a *Absensi) GetFormattedTanggal() string {
-	return a.Tanggal.Format("02-01-2006") // dd-mm-yyyy
+	return a.Tanggal.Format("02-01-2006")
 }

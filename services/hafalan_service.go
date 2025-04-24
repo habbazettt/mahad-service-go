@@ -53,6 +53,7 @@ func (s *HafalanService) CreateHafalan(c *fiber.Ctx) error {
 	// Simpan Hafalan
 	hafalan := models.Hafalan{
 		MahasantriID: req.MahasantriID,
+		MentorID:     mahasantri.MentorID,
 		Juz:          req.Juz,
 		Halaman:      req.Halaman,
 		TotalSetoran: req.TotalSetoran,
@@ -250,11 +251,12 @@ func (s *HafalanService) GetHafalanByMahasantriID(c *fiber.Ctx) error {
 	// Format response dengan data Mahasantri, Hafalan, dan Total Setoran
 	response := fiber.Map{
 		"mahasantri": fiber.Map{
-			"id":      mahasantri.ID,
-			"nama":    mahasantri.Nama,
-			"nim":     mahasantri.NIM,
-			"jurusan": mahasantri.Jurusan,
-			"gender":  mahasantri.Gender,
+			"id":       mahasantri.ID,
+			"mentorID": mahasantri.MentorID,
+			"nama":     mahasantri.Nama,
+			"nim":      mahasantri.NIM,
+			"jurusan":  mahasantri.Jurusan,
+			"gender":   mahasantri.Gender,
 		},
 		"hafalan":       hafalan,
 		"total_setoran": totalSetoran,
@@ -272,6 +274,145 @@ func (s *HafalanService) GetHafalanByMahasantriID(c *fiber.Ctx) error {
 
 	logrus.WithField("mahasantri_id", mahasantriID).Info("Fetched hafalan with total setoran and pagination successfully")
 	return utils.SuccessResponse(c, fiber.StatusOK, "Hafalan fetched successfully", response)
+}
+
+// GetHafalanByMentorID - Mengambil semua hafalan berdasarkan MentorID dengan pagination dan filtering
+// @Summary Mengambil semua hafalan berdasarkan MentorID dengan pagination dan filtering
+// @Description Endpoint ini digunakan untuk mengambil data hafalan berdasarkan MentorID, dengan dukungan filtering berdasarkan kategori dan juz serta pagination.
+// @Tags Hafalan
+// @Accept json
+// @Produce json
+// @Param mentor_id path int true "ID Mentor"
+// @Param kategori query string false "Filter by kategori" Enums(ziyadah, murojaah)
+// @Param juz query string false "Filter by juz" Example(1, 2)
+// @Param page query int false "Page number for pagination" Default(1)
+// @Param limit query int false "Number of items per page" Default(10)
+// @Success 200 {object} utils.Response "Hafalan fetched successfully"
+// @Failure 400 {object} utils.Response "Invalid request parameters"
+// @Failure 404 {object} utils.Response "Mentor or Mahasantri not found"
+// @Failure 500 {object} utils.Response "Failed to fetch hafalan"
+// @Security BearerAuth
+// @Router /api/v1/hafalan/mentor/{mentor_id} [get]
+func (s *HafalanService) GetHafalanByMentorID(c *fiber.Ctx) error {
+	mentorID := c.Params("mentor_id")
+
+	// Ambil query parameters untuk filtering
+	kategori := c.Query("kategori") // Optional filter by kategori
+	juz := c.Query("juz")           // Optional filter by juz
+
+	// Ambil query parameters untuk pagination
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	limit, _ := strconv.Atoi(c.Query("limit", "10"))
+	if page < 1 {
+		page = 1
+	}
+	offset := (page - 1) * limit
+
+	// Ambil data mentor
+	var mentor models.Mentor
+	if err := s.DB.First(&mentor, mentorID).Error; err != nil {
+		logrus.WithError(err).WithField("mentor_id", mentorID).Warn("Mentor not found")
+		return utils.ResponseError(c, fiber.StatusNotFound, "Mentor not found", nil)
+	}
+
+	// Ambil semua mahasantri dengan mentor_id tersebut
+	var mahasantris []models.Mahasantri
+	if err := s.DB.Where("mentor_id = ?", mentorID).Find(&mahasantris).Error; err != nil {
+		logrus.WithError(err).WithField("mentor_id", mentorID).Error("Failed to fetch mahasantri")
+		return utils.ResponseError(c, fiber.StatusInternalServerError, "Failed to fetch mahasantri", err.Error())
+	}
+
+	var data []fiber.Map
+
+	for _, mahasantri := range mahasantris {
+		// Build query hafalan per mahasantri
+		query := s.DB.Where("mahasantri_id = ?", mahasantri.ID)
+
+		if kategori != "" {
+			query = query.Where("kategori = ?", kategori)
+		}
+		if juz != "" {
+			query = query.Where("juz = ?", juz)
+		}
+
+		// Hitung total hafalan
+		var totalHafalan int64
+		query.Model(&models.Hafalan{}).Count(&totalHafalan)
+
+		// Ambil data hafalan
+		var hafalan []models.Hafalan
+		if err := query.Limit(limit).Offset(offset).Find(&hafalan).Error; err != nil {
+			logrus.WithError(err).WithField("mahasantri_id", mahasantri.ID).Error("Failed to fetch hafalan")
+			return utils.ResponseError(c, fiber.StatusInternalServerError, "Failed to fetch hafalan", err.Error())
+		}
+
+		// Inisialisasi variabel total setoran dan kategori
+		var totalSetoran float32
+		totalPerJuz := make(map[int]float32)
+		var totalZiyadah float32
+		var totalMurojaah float32
+
+		for _, h := range hafalan {
+			totalSetoran += h.TotalSetoran
+			totalPerJuz[h.Juz] += h.TotalSetoran
+
+			if h.Kategori == "ziyadah" {
+				totalZiyadah += h.TotalSetoran
+			} else if h.Kategori == "murojaah" {
+				totalMurojaah += h.TotalSetoran
+			}
+		}
+
+		// Format ke array
+		var totalPerJuzArray []fiber.Map
+		for juzNum, total := range totalPerJuz {
+			totalPerJuzArray = append(totalPerJuzArray, fiber.Map{
+				"juz":           juzNum,
+				"total_setoran": total,
+			})
+		}
+
+		// Compose Hafalan Mahasantri
+		mahasantriResponse := fiber.Map{
+			"mahasantri": fiber.Map{
+				"id":       mahasantri.ID,
+				"mentorId": mahasantri.MentorID,
+				"nama":     mahasantri.Nama,
+				"nim":      mahasantri.NIM,
+				"jurusan":  mahasantri.Jurusan,
+				"gender":   mahasantri.Gender,
+			},
+			"summary": fiber.Map{
+				"total_setoran": totalSetoran,
+				"total_perJuz":  totalPerJuzArray,
+				"total_perKategori": fiber.Map{
+					"ziyadah":  totalZiyadah,
+					"murojaah": totalMurojaah,
+				},
+			},
+			"pagination": fiber.Map{
+				"current_page":  page,
+				"total_pafalan": totalHafalan,
+				"total_pages":   int(math.Ceil(float64(totalHafalan) / float64(limit))),
+			},
+			"list_hafalan": hafalan,
+		}
+
+		data = append(data, mahasantriResponse)
+	}
+
+	response := fiber.Map{
+		"mentor": fiber.Map{
+			"id":     mentor.ID,
+			"nama":   mentor.Nama,
+			"email":  mentor.Email,
+			"gender": mentor.Gender,
+		},
+		"mahasantriList": data,
+	}
+
+	logrus.WithField("mentor_id", mentorID).Info("Fetched hafalan by mentor successfully")
+	return utils.SuccessResponse(c, fiber.StatusOK, "Hafalan by mentor fetched successfully", response)
 }
 
 // GetHafalanByKategori - Mengambil semua hafalan berdasarkan MahasantriID dan kategori dengan pagination
@@ -337,11 +478,12 @@ func (s *HafalanService) GetHafalanByKategori(c *fiber.Ctx) error {
 	// Format response dengan data Mahasantri, Hafalan, dan Total Setoran
 	response := fiber.Map{
 		"mahasantri": fiber.Map{
-			"id":      mahasantri.ID,
-			"nama":    mahasantri.Nama,
-			"nim":     mahasantri.NIM,
-			"jurusan": mahasantri.Jurusan,
-			"gender":  mahasantri.Gender,
+			"id":       mahasantri.ID,
+			"mentorID": mahasantri.MentorID,
+			"nama":     mahasantri.Nama,
+			"nim":      mahasantri.NIM,
+			"jurusan":  mahasantri.Jurusan,
+			"gender":   mahasantri.Gender,
 		},
 		"kategori":      kategori,
 		"hafalan":       hafalan,

@@ -10,11 +10,11 @@ import (
 func SetupMentorRoutes(app *fiber.App, db *gorm.DB) {
 	service := services.MentorService{DB: db}
 
-	mentorRoutes := app.Group("/api/v1/mentors", middleware.JWTMiddleware)
+	mentorRoutes := app.Group("/api/v1/mentors")
 	{
-		mentorRoutes.Get("/", middleware.RoleMiddleware("mentor"), service.GetAllMentors)
-		mentorRoutes.Get("/:id", middleware.RoleMiddleware("mentor"), service.GetMentorByID)
-		mentorRoutes.Put("/:id", middleware.RoleMiddleware("mentor"), service.UpdateMentor)
-		mentorRoutes.Delete("/:id", middleware.RoleMiddleware("mentor"), service.DeleteMentor)
+		mentorRoutes.Get("/", service.GetAllMentors)
+		mentorRoutes.Get("/:id", service.GetMentorByID)
+		mentorRoutes.Put("/:id", middleware.JWTMiddleware, middleware.RoleMiddleware("mentor"), service.UpdateMentor)
+		mentorRoutes.Delete("/:id", middleware.JWTMiddleware, middleware.RoleMiddleware("mentor"), service.DeleteMentor)
 	}
 }

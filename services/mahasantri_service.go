@@ -24,6 +24,7 @@ type MahasantriService struct {
 // @Produce json
 // @Param page query int false "Page number" default(1)
 // @Param limit query int false "Limit per page" default(10)
+// @Param name query string false "Search by name"
 // @Security BearerAuth
 // @Success 200 {object} utils.Response{data=[]dto.MahasantriResponse,pagination=utils.Pagination} "Mahasantri retrieved successfully"
 // @Failure 400 {object} utils.Response "Invalid request"
@@ -32,18 +33,25 @@ type MahasantriService struct {
 func (s *MahasantriService) GetAllMahasantri(c *fiber.Ctx) error {
 	page, _ := strconv.Atoi(c.Query("page", "1"))
 	limit, _ := strconv.Atoi(c.Query("limit", "10"))
+	name := c.Query("nama", "") // Ambil parameter pencarian nama
+
 	if page < 1 {
 		page = 1
 	}
 	offset := (page - 1) * limit
 
 	var totalMahasantri int64
-	// Hitung total Mahasantri untuk pagination
-	s.DB.Model(&models.Mahasantri{}).Count(&totalMahasantri)
-
 	var mahasantri []models.Mahasantri
+
+	// Hitung total Mahasantri untuk pagination dengan filter nama
+	query := s.DB.Model(&models.Mahasantri{})
+	if name != "" {
+		query = query.Where("nama ILIKE ?", "%"+name+"%") // Filter berdasarkan nama
+	}
+	query.Count(&totalMahasantri)
+
 	// Preload Mentor jika ingin menampilkan informasi mentornya juga, dan paginate
-	if err := s.DB.Preload("Mentor").
+	if err := query.Preload("Mentor").
 		Limit(limit).Offset(offset).
 		Find(&mahasantri).Error; err != nil {
 		logrus.WithError(err).Error("Failed to fetch mahasantri")
@@ -65,6 +73,7 @@ func (s *MahasantriService) GetAllMahasantri(c *fiber.Ctx) error {
 	logrus.WithFields(logrus.Fields{
 		"page":  page,
 		"limit": limit,
+		"name":  name,
 	}).Info("Paginated mahasantri retrieved successfully")
 
 	// Return response dengan pagination informasi

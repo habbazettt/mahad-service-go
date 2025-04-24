@@ -258,6 +258,7 @@ func (s *AuthService) LoginMahasantri(c *fiber.Ctx) error {
 			NIM:      mahasantri.NIM,
 			Jurusan:  mahasantri.Jurusan,
 			Gender:   mahasantri.Gender,
+			MentorID: mahasantri.MentorID,
 			UserType: RoleMahasantri,
 		},
 	})
