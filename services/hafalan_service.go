@@ -287,6 +287,7 @@ func (s *HafalanService) GetHafalanByMahasantriID(c *fiber.Ctx) error {
 // @Param juz query string false "Filter by juz" Example(1, 2)
 // @Param page query int false "Page number for pagination" Default(1)
 // @Param limit query int false "Number of items per page" Default(10)
+// @Param sort query string false "Sort by created_at" Enums(asc, desc) Default(desc)
 // @Success 200 {object} utils.Response "Hafalan fetched successfully"
 // @Failure 400 {object} utils.Response "Invalid request parameters"
 // @Failure 404 {object} utils.Response "Mentor or Mahasantri not found"
@@ -299,6 +300,12 @@ func (s *HafalanService) GetHafalanByMentorID(c *fiber.Ctx) error {
 	// Ambil query parameters untuk filtering
 	kategori := c.Query("kategori") // Optional filter by kategori
 	juz := c.Query("juz")           // Optional filter by juz
+
+	// Ambil dan validasi parameter sort
+	sort := c.Query("sort", "desc") // Default: desc
+	if sort != "asc" && sort != "desc" {
+		return utils.ResponseError(c, fiber.StatusBadRequest, "Invalid sort value. Allowed values are 'asc' or 'desc'", nil)
+	}
 
 	// Ambil query parameters untuk pagination
 	page, _ := strconv.Atoi(c.Query("page", "1"))
@@ -334,6 +341,9 @@ func (s *HafalanService) GetHafalanByMentorID(c *fiber.Ctx) error {
 		if juz != "" {
 			query = query.Where("juz = ?", juz)
 		}
+
+		// Tambahkan pengurutan berdasarkan created_at
+		query = query.Order("created_at " + sort)
 
 		// Hitung total hafalan
 		var totalHafalan int64
