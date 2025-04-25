@@ -1,6 +1,7 @@
 package services
 
 import (
+	"fmt"
 	"math"
 	"strconv"
 
@@ -90,6 +91,7 @@ func (s *HafalanService) CreateHafalan(c *fiber.Ctx) error {
 // @Produce json
 // @Param page query int false "Halaman yang ingin diambil" default(1)
 // @Param limit query int false "Jumlah data per halaman" default(10)
+// @Param sort query string false "Sort by created_at" Enums(asc, desc) Default(desc)
 // @Success 200 {object} utils.Response "Hafalan fetched successfully"
 // @Failure 500 {object} utils.Response "Failed to fetch hafalan"
 // @Security BearerAuth
@@ -102,28 +104,51 @@ func (s *HafalanService) GetAllHafalan(c *fiber.Ctx) error {
 	}
 	offset := (page - 1) * limit
 
+	// Ambil dan validasi parameter sort
+	sort := c.Query("sort", "desc")            // Default: desc
+	sortBy := c.Query("sort_by", "created_at") // Default: sort by created_at
+	if sort != "asc" && sort != "desc" {
+		return utils.ResponseError(c, fiber.StatusBadRequest, "Invalid sort value. Allowed values are 'asc' or 'desc'", nil)
+	}
+
+	// Validasi kolom untuk sorting
+	validSortColumns := []string{"created_at", "updated_at", "name"} // Tambahkan kolom yang valid untuk sorting
+	isValidColumn := false
+	for _, col := range validSortColumns {
+		if col == sortBy {
+			isValidColumn = true
+			break
+		}
+	}
+	if !isValidColumn {
+		return utils.ResponseError(c, fiber.StatusBadRequest, "Invalid sort_by value. Allowed values are 'created_at', 'updated_at', 'name'", nil)
+	}
+
 	var totalHafalan int64
 	// Hitung total Hafalan untuk pagination
 	s.DB.Model(&models.Hafalan{}).Count(&totalHafalan)
 
 	var hafalan []models.Hafalan
-	// Paginate Hafalan
-	if err := s.DB.Limit(limit).Offset(offset).Find(&hafalan).Error; err != nil {
+
+	// Paginate dan sort Hafalan
+	if err := s.DB.Order(fmt.Sprintf("%s %s", sortBy, sort)).Limit(limit).Offset(offset).Find(&hafalan).Error; err != nil {
 		logrus.WithError(err).Error("Failed to fetch hafalan")
 		return utils.ResponseError(c, fiber.StatusInternalServerError, "Failed to fetch hafalan", err.Error())
 	}
 
 	logrus.WithFields(logrus.Fields{
-		"page":  page,
-		"limit": limit,
+		"page":    page,
+		"limit":   limit,
+		"sort":    sort,
+		"sort_by": sortBy,
 	}).Info("Paginated hafalan retrieved successfully")
 
 	// Return response dengan pagination informasi
 	return utils.SuccessResponse(c, fiber.StatusOK, "Hafalan fetched successfully", fiber.Map{
 		"pagination": fiber.Map{
-			"current_page":  page,
-			"total_hafalan": totalHafalan,
-			"total_pages":   int(math.Ceil(float64(totalHafalan) / float64(limit))),
+			"current_page": page,
+			"total_data":   totalHafalan,
+			"total_pages":  int(math.Ceil(float64(totalHafalan) / float64(limit))),
 		},
 		"hafalan": hafalan,
 	})
@@ -266,9 +291,9 @@ func (s *HafalanService) GetHafalanByMahasantriID(c *fiber.Ctx) error {
 			"murojaah": totalMurojaah,
 		},
 		"pagination": fiber.Map{
-			"current_page":  page,
-			"total_hafalan": totalHafalan,
-			"total_pages":   int(math.Ceil(float64(totalHafalan) / float64(limit))),
+			"current_page": page,
+			"total_data":   totalHafalan,
+			"total_pages":  int(math.Ceil(float64(totalHafalan) / float64(limit))),
 		},
 	}
 
@@ -401,9 +426,9 @@ func (s *HafalanService) GetHafalanByMentorID(c *fiber.Ctx) error {
 				},
 			},
 			"pagination": fiber.Map{
-				"current_page":  page,
-				"total_pafalan": totalHafalan,
-				"total_pages":   int(math.Ceil(float64(totalHafalan) / float64(limit))),
+				"current_page": page,
+				"total_data":   totalHafalan,
+				"total_pages":  int(math.Ceil(float64(totalHafalan) / float64(limit))),
 			},
 			"list_hafalan": hafalan,
 		}
@@ -499,9 +524,9 @@ func (s *HafalanService) GetHafalanByKategori(c *fiber.Ctx) error {
 		"hafalan":       hafalan,
 		"total_setoran": totalSetoran,
 		"pagination": fiber.Map{
-			"current_page":  page,
-			"total_hafalan": totalHafalan,
-			"total_pages":   int(math.Ceil(float64(totalHafalan) / float64(limit))),
+			"current_page": page,
+			"total_data":   totalHafalan,
+			"total_pages":  int(math.Ceil(float64(totalHafalan) / float64(limit))),
 		},
 	}
 

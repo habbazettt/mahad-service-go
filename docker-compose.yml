@@ -10,5 +10,28 @@ services:
     networks:
       - mahad_network
 
+  postgres:
+    image: postgres:16
+    container_name: mahad_db
+    restart: always
+    ports:
+      - "5433:5432"  # host:container
+    env_file:
+      - .env
+    networks:
+      - mahad_network
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    restart: always
+    ports:
+      - "8081:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@mahad.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    networks:
+      - mahad_network
+
 networks:
   mahad_network:

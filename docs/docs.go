@@ -649,6 +649,17 @@ const docTemplate = `{
                         "description": "Jumlah data per halaman",
                         "name": "limit",
                         "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "default": "desc",
+                        "description": "Sort by created_at",
+                        "name": "sort",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -863,6 +874,17 @@ const docTemplate = `{
                         "default": 10,
                         "description": "Number of items per page",
                         "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "default": "desc",
+                        "description": "Sort by created_at",
+                        "name": "sort",
                         "in": "query"
                     }
                 ],
@@ -2079,7 +2101,7 @@ const docTemplate = `{
                 "current_page": {
                     "type": "integer"
                 },
-                "total_mahasantri": {
+                "total_data": {
                     "type": "integer"
                 },
                 "total_pages": {

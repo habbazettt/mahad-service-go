@@ -79,9 +79,9 @@ func (s *MahasantriService) GetAllMahasantri(c *fiber.Ctx) error {
 	// Return response dengan pagination informasi
 	return utils.SuccessResponse(c, fiber.StatusOK, "Mahasantri retrieved successfully", fiber.Map{
 		"pagination": fiber.Map{
-			"current_page":     page,
-			"total_mahasantri": totalMahasantri,
-			"total_pages":      int(math.Ceil(float64(totalMahasantri) / float64(limit))),
+			"current_page": page,
+			"total_data":   totalMahasantri,
+			"total_pages":  int(math.Ceil(float64(totalMahasantri) / float64(limit))),
 		},
 		"mahasantri": response,
 	})
