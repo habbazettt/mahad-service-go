@@ -213,8 +213,10 @@ func (s *HafalanService) GetHafalanByID(c *fiber.Ctx) error {
 // @Param mahasantri_id path int true "ID Mahasantri"
 // @Param kategori query string false "Filter by kategori" Enums(ziyadah, murojaah)
 // @Param juz query string false "Filter by juz" Example(1, 2)
+// @Param waktu query string false "Filter by waktu" Enums(shubuh, isya)
 // @Param page query int false "Page number for pagination" Default(1)
 // @Param limit query int false "Number of items per page" Default(10)
+// @Param sort query string false "Sort by created_at" Enums(asc, desc) Default(desc)
 // @Success 200 {object} utils.Response "Hafalan fetched successfully"
 // @Failure 400 {object} utils.Response "Invalid request parameters"
 // @Failure 404 {object} utils.Response "Mahasantri not found"
@@ -227,6 +229,7 @@ func (s *HafalanService) GetHafalanByMahasantriID(c *fiber.Ctx) error {
 	// Ambil query parameters untuk filtering
 	kategori := c.Query("kategori") // Optional filter by kategori
 	juz := c.Query("juz")           // Optional filter by juz
+	waktu := c.Query("waktu")       // Optional filter by waktu
 
 	// Ambil query parameters untuk pagination
 	page, _ := strconv.Atoi(c.Query("page", "1"))
@@ -235,6 +238,26 @@ func (s *HafalanService) GetHafalanByMahasantriID(c *fiber.Ctx) error {
 		page = 1
 	}
 	offset := (page - 1) * limit
+
+	// Ambil dan validasi parameter sort
+	sort := c.Query("sort", "desc")            // Default: desc
+	sortBy := c.Query("sort_by", "created_at") // Default: sort by created_at
+	if sort != "asc" && sort != "desc" {
+		return utils.ResponseError(c, fiber.StatusBadRequest, "Invalid sort value. Allowed values are 'asc' or 'desc'", nil)
+	}
+
+	// Validasi kolom untuk sorting
+	validSortColumns := []string{"created_at", "updated_at", "juz", "kategori", "waktu"} // Tambahkan kolom yang valid untuk sorting
+	isValidColumn := false
+	for _, col := range validSortColumns {
+		if col == sortBy {
+			isValidColumn = true
+			break
+		}
+	}
+	if !isValidColumn {
+		return utils.ResponseError(c, fiber.StatusBadRequest, "Invalid sort_by value. Allowed values are 'created_at', 'updated_at', 'juz', 'kategori', 'waktu'", nil)
+	}
 
 	// Ambil data Mahasantri
 	var mahasantri models.Mahasantri
@@ -256,13 +279,18 @@ func (s *HafalanService) GetHafalanByMahasantriID(c *fiber.Ctx) error {
 		query = query.Where("juz = ?", juz)
 	}
 
+	// Apply waktu filter jika ada
+	if waktu != "" {
+		query = query.Where("waktu = ?", waktu)
+	}
+
 	// Hitung total hafalan untuk pagination
 	var totalHafalan int64
 	query.Model(&models.Hafalan{}).Count(&totalHafalan)
 
-	// Ambil data Hafalan dengan pagination
+	// Ambil data Hafalan dengan pagination dan sorting
 	var hafalan []models.Hafalan
-	if err := query.Limit(limit).Offset(offset).Find(&hafalan).Error; err != nil {
+	if err := query.Order(fmt.Sprintf("%s %s", sortBy, sort)).Limit(limit).Offset(offset).Find(&hafalan).Error; err != nil {
 		logrus.WithError(err).WithField("mahasantri_id", mahasantriID).Error("Failed to fetch hafalan")
 		return utils.ResponseError(c, fiber.StatusInternalServerError, "Failed to fetch hafalan", err.Error())
 	}
