@@ -92,6 +92,10 @@ func (s *HafalanService) CreateHafalan(c *fiber.Ctx) error {
 // @Param page query int false "Halaman yang ingin diambil" default(1)
 // @Param limit query int false "Jumlah data per halaman" default(10)
 // @Param sort query string false "Sort by created_at" Enums(asc, desc) Default(desc)
+// @Param mentor_id query int false "ID Mentor untuk filter"
+// @Param mahasantri_id query int false "ID Mahasantri untuk filter"
+// @Param kategori query string false "Kategori untuk filter"
+// @Param waktu query string false "Waktu untuk filter"
 // @Success 200 {object} utils.Response "Hafalan fetched successfully"
 // @Failure 500 {object} utils.Response "Failed to fetch hafalan"
 // @Security BearerAuth
@@ -125,13 +129,31 @@ func (s *HafalanService) GetAllHafalan(c *fiber.Ctx) error {
 	}
 
 	var totalHafalan int64
-	// Hitung total Hafalan untuk pagination
-	s.DB.Model(&models.Hafalan{}).Count(&totalHafalan)
 
 	var hafalan []models.Hafalan
 
+	// Build the query
+	query := s.DB.Model(&models.Hafalan{})
+
+	// Apply filters
+	if mentorID := c.Query("mentor_id"); mentorID != "" {
+		query = query.Where("mentor_id = ?", mentorID)
+	}
+	if mahasantriID := c.Query("mahasantri_id"); mahasantriID != "" {
+		query = query.Where("mahasantri_id = ?", mahasantriID)
+	}
+	if kategori := c.Query("kategori"); kategori != "" {
+		query = query.Where("kategori = ?", kategori)
+	}
+	if waktu := c.Query("waktu"); waktu != "" {
+		query = query.Where("waktu = ?", waktu)
+	}
+
+	// Hitung total Hafalan untuk pagination
+	query.Count(&totalHafalan)
+
 	// Paginate dan sort Hafalan
-	if err := s.DB.Order(fmt.Sprintf("%s %s", sortBy, sort)).Limit(limit).Offset(offset).Find(&hafalan).Error; err != nil {
+	if err := query.Order(fmt.Sprintf("%s %s", sortBy, sort)).Limit(limit).Offset(offset).Find(&hafalan).Error; err != nil {
 		logrus.WithError(err).Error("Failed to fetch hafalan")
 		return utils.ResponseError(c, fiber.StatusInternalServerError, "Failed to fetch hafalan", err.Error())
 	}
