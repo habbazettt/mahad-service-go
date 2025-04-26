@@ -1672,6 +1672,247 @@
                     }
                 }
             }
+        },
+        "/api/v1/target_semester": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Endpoint ini digunakan untuk membuat target semester untuk mahasantri",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "TargetSemester"
+                ],
+                "summary": "Membuat target semester baru",
+                "parameters": [
+                    {
+                        "description": "Create Target Semester Request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateTargetSemesterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Target semester created successfully",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Mahasantri not found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to create target semester",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/target_semester/mahasantri/{mahasantri_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Endpoint ini digunakan untuk mengambil target semester milik mahasantri tertentu, dengan optional filter dan pagination",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "TargetSemester"
+                ],
+                "summary": "Mengambil target semester berdasarkan ID mahasantri",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Mahasantri ID",
+                        "name": "mahasantri_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by semester",
+                        "name": "semester",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by tahun ajaran",
+                        "name": "tahun_ajaran",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Fetched target semesters successfully",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Mahasantri not found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to fetch target semesters",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/target_semester/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Endpoint ini digunakan untuk mengupdate data target semester berdasarkan ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "TargetSemester"
+                ],
+                "summary": "Update data target semester",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Target Semester ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Update Target Semester Request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.UpdateTargetSemesterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Target semester updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body or no changes detected",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Target semester not found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to update target semester",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Endpoint ini digunakan untuk menghapus target semester berdasarkan ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "TargetSemester"
+                ],
+                "summary": "Menghapus target semester",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Target Semester ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Target semester deleted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Target semester not found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to delete target semester",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -1795,6 +2036,36 @@
                         "shubuh",
                         "isya"
                     ]
+                }
+            }
+        },
+        "dto.CreateTargetSemesterRequest": {
+            "type": "object",
+            "required": [
+                "mahasantri_id",
+                "semester",
+                "tahun_ajaran",
+                "target"
+            ],
+            "properties": {
+                "keterangan": {
+                    "type": "string"
+                },
+                "mahasantri_id": {
+                    "type": "integer"
+                },
+                "semester": {
+                    "type": "string",
+                    "enum": [
+                        "Ganjil",
+                        "Genap"
+                    ]
+                },
+                "tahun_ajaran": {
+                    "type": "string"
+                },
+                "target": {
+                    "type": "integer"
                 }
             }
         },
@@ -2026,6 +2297,23 @@
                 },
                 "nama": {
                     "type": "string"
+                }
+            }
+        },
+        "dto.UpdateTargetSemesterRequest": {
+            "type": "object",
+            "properties": {
+                "keterangan": {
+                    "type": "string"
+                },
+                "semester": {
+                    "type": "string"
+                },
+                "tahun_ajaran": {
+                    "type": "string"
+                },
+                "target": {
+                    "type": "integer"
                 }
             }
         },

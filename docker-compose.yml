@@ -1,7 +1,7 @@
 services:
-  golang-backend:
+  mtadigital_backend:
     build: .
-    container_name: mahad_backend
+    container_name: mtadigital_backend
     restart: always
     ports:
       - "8080:8080"
@@ -9,29 +9,28 @@ services:
       - .env
     networks:
       - mahad_network
+    depends_on:
+      - postgres
 
   postgres:
     image: postgres:16
-    container_name: mahad_db
+    container_name: mtadigital_db
     restart: always
     ports:
-      - "5433:5432"  # host:container
+      - "5433:5432"
     env_file:
       - .env
-    networks:
-      - mahad_network
-
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: pgadmin
-    restart: always
-    ports:
-      - "8081:80"
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@mahad.com
-      PGADMIN_DEFAULT_PASSWORD: admin123
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     networks:
       - mahad_network
+    volumes:
+      - mtadigital_db:/var/lib/postgresql/data
 
 networks:
   mahad_network:
+
+volumes:
+  mtadigital_db:

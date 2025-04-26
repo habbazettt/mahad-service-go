@@ -34,7 +34,7 @@ func main() {
 	app := fiber.New()
 
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "http://localhost:5173,https://t74dj4s7-5173.asse.devtunnels.ms",
+		AllowOrigins: "http://localhost:5173",
 		AllowMethods: "GET,POST,PUT,DELETE",
 		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
 	}))
@@ -51,6 +51,7 @@ func main() {
 	routes.SetupMahasantriRoutes(app, db)
 	routes.SetupHafalanRoutes(app, db)
 	routes.SetupAbsensiRoutes(app, db)
+	routes.SetupTargetSemesterRoutes(app, db)
 
 	port := os.Getenv("PORT")
 	if port == "" {

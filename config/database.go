@@ -64,7 +64,13 @@ func MigrateDB() {
 		logrus.Fatal("❌ Database belum terhubung! Jalankan ConnectDB() terlebih dahulu.")
 	}
 
-	err := DB.AutoMigrate(&models.Mentor{}, &models.Mahasantri{}, &models.Hafalan{}, &models.Absensi{})
+	err := DB.AutoMigrate(
+		&models.Mentor{},
+		&models.Mahasantri{},
+		&models.Hafalan{},
+		&models.Absensi{},
+		&models.TargetSemester{},
+	)
 	if err != nil {
 		logrus.WithError(err).Fatal("❌ Gagal melakukan migrasi database!")
 	}
