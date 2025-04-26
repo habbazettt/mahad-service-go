@@ -660,30 +660,6 @@ const docTemplate = `{
                         "description": "Sort by created_at",
                         "name": "sort",
                         "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID Mentor untuk filter",
-                        "name": "mentor_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "ID Mahasantri untuk filter",
-                        "name": "mahasantri_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Kategori untuk filter",
-                        "name": "kategori",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Waktu untuk filter",
-                        "name": "waktu",
-                        "in": "query"
                     }
                 ],
                 "responses": {
