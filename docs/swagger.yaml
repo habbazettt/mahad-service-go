@@ -807,6 +807,22 @@ paths:
         in: query
         name: sort
         type: string
+      - description: ID Mentor untuk filter
+        in: query
+        name: mentor_id
+        type: integer
+      - description: ID Mahasantri untuk filter
+        in: query
+        name: mahasantri_id
+        type: integer
+      - description: Kategori untuk filter
+        in: query
+        name: kategori
+        type: string
+      - description: Waktu untuk filter
+        in: query
+        name: waktu
+        type: string
       produces:
       - application/json
       responses:
