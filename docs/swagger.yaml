@@ -1086,6 +1086,13 @@ paths:
         in: query
         name: juz
         type: string
+      - description: Filter by waktu
+        enum:
+        - shubuh
+        - isya
+        in: query
+        name: waktu
+        type: string
       - default: 1
         description: Page number for pagination
         in: query
@@ -1096,6 +1103,14 @@ paths:
         in: query
         name: limit
         type: integer
+      - default: desc
+        description: Sort by created_at
+        enum:
+        - asc
+        - desc
+        in: query
+        name: sort
+        type: string
       produces:
       - application/json
       responses:
@@ -1517,6 +1532,34 @@ paths:
       tags:
       - Mentor
   /api/v1/target_semester:
+    get:
+      consumes:
+      - application/json
+      description: Endpoint ini digunakan untuk menampilkan semua target semester
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Fetched target semesters successfully
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Mahasantri not found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Failed to create target semester
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Menampilkan semua target semester
+      tags:
+      - TargetSemester
     post:
       consumes:
       - application/json
@@ -1541,6 +1584,10 @@ paths:
             $ref: '#/definitions/utils.Response'
         "404":
           description: Mahasantri not found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "409":
+          description: Target semester already exists
           schema:
             $ref: '#/definitions/utils.Response'
         "500":
@@ -1582,6 +1629,37 @@ paths:
       security:
       - BearerAuth: []
       summary: Menghapus target semester
+      tags:
+      - TargetSemester
+    get:
+      consumes:
+      - application/json
+      description: Endpoint ini digunakan untuk mengambil data target semester berdasarkan
+        ID yang diberikan.
+      parameters:
+      - description: ID Target Semester
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Target Semester found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Target Semester not found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Failed to fetch target semester
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Mendapatkan target semester berdasarkan ID
       tags:
       - TargetSemester
     put:

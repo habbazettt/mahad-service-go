@@ -105,19 +105,18 @@ func (s *TargetSemesterService) CreateTargetSemester(c *fiber.Ctx) error {
 	return utils.SuccessResponse(c, fiber.StatusCreated, "Target semester created successfully", response)
 }
 
-// CreateTargetSemester - Membuat target semester baru
-// @Summary Membuat target semester baru
-// @Description Endpoint ini digunakan untuk membuat target semester untuk mahasantri
+// CreateTargetSemester -  Mengambil semua target semester
+// @Summary Menampilkan semua target semester
+// @Description Endpoint ini digunakan untuk menampilkan semua target semester
 // @Tags TargetSemester
 // @Accept json
 // @Produce json
-// @Param request body dto.CreateTargetSemesterRequest true "Create Target Semester Request"
-// @Success 201 {object} utils.Response "Target semester created successfully"
+// @Success 200 {object} utils.Response "Fetched target semesters successfully"
 // @Failure 400 {object} utils.Response "Invalid request body"
 // @Failure 404 {object} utils.Response "Mahasantri not found"
 // @Failure 500 {object} utils.Response "Failed to create target semester"
 // @Security BearerAuth
-// @Router /api/v1/target_semester [post]
+// @Router /api/v1/target_semester [get]
 func (s *TargetSemesterService) GetAllTargetSemesters(c *fiber.Ctx) error {
 	// Ambil query parameter untuk filtering
 	semester := c.Query("semester")        // Optional filter by semester (ganjil/genap)
@@ -277,6 +276,34 @@ func (s *TargetSemesterService) GetTargetSemesterByMahasantriID(c *fiber.Ctx) er
 
 	logrus.WithField("mahasantri_id", mahasantriID).Info("Fetched target semesters with pagination successfully")
 	return utils.SuccessResponse(c, fiber.StatusOK, "Fetched target semesters successfully", response)
+}
+
+// GetTargetSemesterByID mendapatkan target semester berdasarkan ID
+// @Summary Mendapatkan target semester berdasarkan ID
+// @Description Endpoint ini digunakan untuk mengambil data target semester berdasarkan ID yang diberikan.
+// @Tags TargetSemester
+// @Accept json
+// @Produce json
+// @Param id path int true "ID Target Semester"
+// @Success 200 {object} utils.Response "Target Semester found"
+// @Failure 404 {object} utils.Response "Target Semester not found"
+// @Failure 500 {object} utils.Response "Failed to fetch target semester"
+// @Security BearerAuth
+// @Router /api/v1/target_semester/{id} [get]
+func (s *TargetSemesterService) GetTargetSemesterByID(c *fiber.Ctx) error {
+	id := c.Params("id")
+	var targetSemester models.TargetSemester
+
+	if err := s.DB.First(&targetSemester, id).Error; err != nil {
+		logrus.WithError(err).Warn("Target Semesternot found")
+		return utils.ResponseError(c, fiber.StatusNotFound, "Target semester not found", nil)
+	}
+
+	logrus.WithFields(logrus.Fields{
+		"target_semester_id": targetSemester.ID,
+	}).Info("Target Semester found")
+
+	return utils.SuccessResponse(c, fiber.StatusOK, "Target Semester found", targetSemester)
 }
 
 // UpdateTargetSemester - Update data target semester

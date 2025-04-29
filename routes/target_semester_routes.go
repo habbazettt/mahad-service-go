@@ -14,6 +14,7 @@ func SetupTargetSemesterRoutes(app *fiber.App, db *gorm.DB) {
 	{
 		targetSemesterRoutes.Post("/", middleware.RoleMiddleware("mentor"), service.CreateTargetSemester)
 		targetSemesterRoutes.Get("/", middleware.RoleMiddleware("mentor"), service.GetAllTargetSemesters)
+		targetSemesterRoutes.Get("/:id", middleware.RoleMiddleware("mentor"), service.GetTargetSemesterByID)
 		targetSemesterRoutes.Get("/mahasantri/:mahasantri_id", middleware.RoleMiddleware("mentor", "mahasantri"), service.GetTargetSemesterByMahasantriID)
 		targetSemesterRoutes.Put("/:id", middleware.RoleMiddleware("mentor"), service.UpdateTargetSemester)
 		targetSemesterRoutes.Delete("/:id", middleware.RoleMiddleware("mentor"), service.DeleteTargetSemester)
