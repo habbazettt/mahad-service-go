@@ -2065,7 +2065,7 @@ const docTemplate = `{
                     "description": "hadir / absen / izin / libur / belum-absen",
                     "type": "string"
                 },
-                "subuh": {
+                "shubuh": {
                     "description": "hadir / absen / izin / libur / belum-absen",
                     "type": "string"
                 },

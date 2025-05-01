@@ -46,7 +46,7 @@ type MahasantriResponseDTO struct {
 
 type AbsensiDailySummaryDTO struct {
 	Tanggal string `json:"tanggal"` // Format: dd-mm-yyyy
-	Shubuh  string `json:"subuh"`   // hadir / absen / izin / libur / belum-absen
+	Shubuh  string `json:"shubuh"`  // hadir / absen / izin / libur / belum-absen
 	Isya    string `json:"isya"`    // hadir / absen / izin / libur / belum-absen
 }
 

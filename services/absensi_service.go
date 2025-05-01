@@ -290,12 +290,18 @@ func (s *AbsensiService) GetAbsensiDailySummary(c *fiber.Ctx) error {
 		shubuh := "belum-absen"
 		isya := "belum-absen"
 
-		if data, ok := absensiMap[tanggal]; ok {
-			if val, exists := data["shubuh"]; exists {
-				shubuh = val
-			}
-			if val, exists := data["isya"]; exists {
-				isya = val
+		// Cek apakah hari tersebut adalah Sabtu atau Minggu
+		if d.Weekday() == time.Saturday || d.Weekday() == time.Sunday {
+			shubuh = "libur"
+			isya = "libur"
+		} else {
+			if data, ok := absensiMap[tanggal]; ok {
+				if val, exists := data["shubuh"]; exists {
+					shubuh = val
+				}
+				if val, exists := data["isya"]; exists {
+					isya = val
+				}
 			}
 		}
 
