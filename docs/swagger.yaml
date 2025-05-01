@@ -3,43 +3,31 @@ definitions:
   dto.AbsensiDailySummaryDTO:
     properties:
       isya:
-        description: hadir / absen / izin / belum-absen
+        description: hadir / absen / izin / libur / belum-absen
         type: string
       subuh:
-        description: hadir / absen / izin / belum-absen
+        description: hadir / absen / izin / libur / belum-absen
         type: string
       tanggal:
         description: 'Format: dd-mm-yyyy'
         type: string
     type: object
-  dto.AbsensiMonthlySummaryDTO:
-    properties:
-      isya:
-        $ref: '#/definitions/dto.StatusCountDTO'
-      month:
-        type: string
-      shubuh:
-        $ref: '#/definitions/dto.StatusCountDTO'
-      total_alpa:
-        type: integer
-      total_hadir:
-        type: integer
-      total_izin:
-        type: integer
-      year:
-        type: integer
-    type: object
   dto.AbsensiRequestDTO:
     properties:
       mahasantri_id:
-        description: Validasi untuk memastikan MahasantriID ada
+        type: integer
+      mentor_id:
         type: integer
       status:
-        description: '"Hadir", "Absen", atau "Izin"'
+        description: '"Hadir", "Absen", "Izin" atau "Libur"'
         enum:
         - hadir
         - absen
         - izin
+        - libur
+        type: string
+      tanggal:
+        description: 'Format: dd-mm-yyyy'
         type: string
       waktu:
         description: '"Shubuh" atau "Isya"'
@@ -49,7 +37,9 @@ definitions:
         type: string
     required:
     - mahasantri_id
+    - mentor_id
     - status
+    - tanggal
     - waktu
     type: object
   dto.CreateHafalanRequest:
@@ -221,14 +211,17 @@ definitions:
     - nama
     - password
     type: object
-  dto.StatusCountDTO:
+  dto.UpdateAbsensiRequestDTO:
     properties:
-      alpa:
-        type: integer
-      hadir:
-        type: integer
-      izin:
-        type: integer
+      status:
+        description: '"Hadir", "Absen", "Izin" atau "Libur"'
+        type: string
+      tanggal:
+        description: 'Format: dd-mm-yyyy'
+        type: string
+      waktu:
+        description: '"Shubuh" atau "Isya"'
+        type: string
     type: object
   dto.UpdateHafalanRequest:
     properties:
@@ -424,6 +417,58 @@ info:
   version: "1.0"
 paths:
   /api/v1/absensi:
+    get:
+      consumes:
+      - application/json
+      description: Endpoint ini digunakan untuk mengambil data absensi dengan pagination,
+        filter, dan sorting.
+      parameters:
+      - default: 1
+        description: Nomor halaman
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Jumlah data per halaman
+        in: query
+        name: limit
+        type: integer
+      - description: Filter berdasarkan bulan (MM)
+        in: query
+        name: month
+        type: string
+      - description: Filter berdasarkan status
+        in: query
+        name: status
+        type: string
+      - description: Filter berdasarkan waktu
+        in: query
+        name: waktu
+        type: string
+      - description: Filter berdasarkan ID Mahasantri
+        in: query
+        name: mahasantri_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Data absensi retrieved successfully
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Failed to retrieve absensi
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Mengambil data absensi
+      tags:
+      - Absensi
     post:
       consumes:
       - application/json
@@ -444,7 +489,7 @@ paths:
           schema:
             $ref: '#/definitions/utils.Response'
         "400":
-          description: Invalid request body or Absensi already recorded for this time
+          description: Invalid request body or Absensi already recorded for this date
           schema:
             $ref: '#/definitions/utils.Response'
         "401":
@@ -464,67 +509,73 @@ paths:
       summary: Membuat absensi baru untuk Mahasantri
       tags:
       - Absensi
-  /api/v1/absensi/mahasantri/{mahasantri_id}:
-    get:
-      consumes:
-      - application/json
-      description: Endpoint ini digunakan untuk mendapatkan daftar absensi dari Mahasantri
-        tertentu berdasarkan filter tanggal, waktu, status, serta mendukung paginasi.
+  /api/v1/absensi/{id}:
+    delete:
+      description: Endpoint ini digunakan untuk menghapus data absensi berdasarkan
+        ID yang diberikan.
       parameters:
-      - description: Mahasantri ID
+      - description: ID Absensi
         in: path
-        name: mahasantri_id
+        name: id
         required: true
         type: integer
-      - description: 'Tanggal awal filter (format: dd-mm-yyyy)'
-        in: query
-        name: start_date
-        type: string
-      - description: 'Tanggal akhir filter (format: dd-mm-yyyy)'
-        in: query
-        name: end_date
-        type: string
-      - description: Waktu for filtering absensi
-        in: query
-        name: waktu
-        type: string
-      - description: Status for filtering absensi
-        in: query
-        name: status
-        type: string
-      - default: 1
-        description: Page number for pagination
-        in: query
-        name: page
-        type: integer
-      - default: 10
-        description: Limit number of results per page
-        in: query
-        name: limit
-        type: integer
-      produces:
-      - application/json
       responses:
         "200":
-          description: Absensi retrieved successfully
-          schema:
-            $ref: '#/definitions/utils.Response'
-        "400":
-          description: Invalid input or query parameters
+          description: Absensi deleted successfully
           schema:
             $ref: '#/definitions/utils.Response'
         "404":
-          description: Mahasantri not found
+          description: Absensi not found
           schema:
             $ref: '#/definitions/utils.Response'
         "500":
-          description: Failed to retrieve absensi
+          description: Failed to delete absensi
           schema:
             $ref: '#/definitions/utils.Response'
       security:
       - BearerAuth: []
-      summary: Mendapatkan daftar absensi berdasarkan Mahasantri ID dengan filter
-        tanggal, waktu, dan status
+      summary: Menghapus data absensi berdasarkan ID
+      tags:
+      - Absensi
+    put:
+      consumes:
+      - application/json
+      description: Endpoint ini digunakan untuk mengupdate data absensi berdasarkan
+        ID.
+      parameters:
+      - description: ID Absensi
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Data absensi
+        in: body
+        name: absensi
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateAbsensiRequestDTO'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Absensi updated successfully
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Absensi not found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Failed to update absensi
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Mengupdate data absensi
       tags:
       - Absensi
   /api/v1/absensi/mahasantri/{mahasantri_id}/daily-summary:
@@ -571,49 +622,6 @@ paths:
       security:
       - BearerAuth: []
       summary: Mendapatkan ringkasan absensi harian Mahasantri
-      tags:
-      - Absensi
-  /api/v1/absensi/mahasantri/{mahasantri_id}/per-month:
-    get:
-      description: Mengambil total absensi bulanan berdasarkan waktu (shubuh & isya)
-        dan status (hadir, izin, alpa) dalam satu bulan tertentu.
-      parameters:
-      - description: ID Mahasantri
-        in: path
-        name: mahasantri_id
-        required: true
-        type: integer
-      - description: 'Bulan (format: MM, contoh: 04 untuk April)'
-        in: query
-        name: month
-        required: true
-        type: string
-      - description: 'Tahun (format: YYYY, contoh: 2025)'
-        in: query
-        name: year
-        required: true
-        type: string
-      responses:
-        "200":
-          description: Berhasil mengambil ringkasan absensi bulanan
-          schema:
-            allOf:
-            - $ref: '#/definitions/utils.SuccessResponseSwagger'
-            - properties:
-                data:
-                  $ref: '#/definitions/dto.AbsensiMonthlySummaryDTO'
-              type: object
-        "400":
-          description: Bad Request - Format salah atau parameter tidak lengkap
-          schema:
-            $ref: '#/definitions/utils.ErrorResponseSwagger'
-        "500":
-          description: Internal Server Error - Gagal mengambil data absensi
-          schema:
-            $ref: '#/definitions/utils.ErrorResponseSwagger'
-      security:
-      - BearerAuth: []
-      summary: Mendapatkan ringkasan absensi bulanan Mahasantri
       tags:
       - Absensi
   /api/v1/auth/forgot-password:

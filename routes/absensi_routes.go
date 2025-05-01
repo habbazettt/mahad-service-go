@@ -13,9 +13,9 @@ func SetupAbsensiRoutes(app *fiber.App, db *gorm.DB) {
 	absensiRoutes := app.Group("/api/v1/absensi", middleware.JWTMiddleware)
 	{
 		absensiRoutes.Post("/", middleware.RoleMiddleware("mentor"), absensiService.CreateAbsensi)
-		absensiRoutes.Get("/mahasantri/:mahasantri_id", middleware.RoleMiddleware("mentor", "mahasantri"), absensiService.GetAbsensiByMahasantriID)
-		absensiRoutes.Get("/mahasantri/:mahasantri_id/per-month", middleware.RoleMiddleware("mentor", "mahasantri"), absensiService.GetAttendancePerMonth)
+		absensiRoutes.Get("/", middleware.RoleMiddleware("mentor"), absensiService.GetAbsensi)
+		absensiRoutes.Put("/:id", middleware.RoleMiddleware("mentor"), absensiService.UpdateAbsensi)
 		absensiRoutes.Get("/mahasantri/:mahasantri_id/daily-summary", middleware.RoleMiddleware("mentor", "mahasantri"), absensiService.GetAbsensiDailySummary)
-
+		absensiRoutes.Delete("/:id", middleware.RoleMiddleware("mentor"), absensiService.DeleteAbsensi)
 	}
 }

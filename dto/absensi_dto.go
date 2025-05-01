@@ -3,9 +3,17 @@ package dto
 import "time"
 
 type AbsensiRequestDTO struct {
-	MahasantriID uint   `json:"mahasantri_id" validate:"required"`                 // Validasi untuk memastikan MahasantriID ada
-	Waktu        string `json:"waktu" validate:"required,oneof=shubuh isya"`       // "Shubuh" atau "Isya"
-	Status       string `json:"status" validate:"required,oneof=hadir absen izin"` // "Hadir", "Absen", atau "Izin"
+	MahasantriID uint   `json:"mahasantri_id" validate:"required"`
+	MentorID     uint   `json:"mentor_id" validate:"required"`
+	Waktu        string `json:"waktu" validate:"required,oneof=shubuh isya"`             // "Shubuh" atau "Isya"
+	Status       string `json:"status" validate:"required,oneof=hadir absen izin libur"` // "Hadir", "Absen", "Izin" atau "Libur"
+	Tanggal      string `json:"tanggal" validate:"required"`                             // Format: dd-mm-yyyy
+}
+
+type UpdateAbsensiRequestDTO struct {
+	Waktu   *string `json:"waktu,omitempty"`   // "Shubuh" atau "Isya"
+	Status  *string `json:"status,omitempty"`  // "Hadir", "Absen", "Izin" atau "Libur"
+	Tanggal *string `json:"tanggal,omitempty"` // Format: dd-mm-yyyy
 }
 
 type AbsensiResponseDTO struct {
@@ -38,8 +46,8 @@ type MahasantriResponseDTO struct {
 
 type AbsensiDailySummaryDTO struct {
 	Tanggal string `json:"tanggal"` // Format: dd-mm-yyyy
-	Shubuh  string `json:"subuh"`   // hadir / absen / izin / belum-absen
-	Isya    string `json:"isya"`    // hadir / absen / izin / belum-absen
+	Shubuh  string `json:"subuh"`   // hadir / absen / izin / libur / belum-absen
+	Isya    string `json:"isya"`    // hadir / absen / izin / libur / belum-absen
 }
 
 type AbsensiMonthlySummaryDTO struct {

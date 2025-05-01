@@ -16,6 +16,84 @@ const docTemplate = `{
     "basePath": "{{.BasePath}}",
     "paths": {
         "/api/v1/absensi": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Endpoint ini digunakan untuk mengambil data absensi dengan pagination, filter, dan sorting.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Absensi"
+                ],
+                "summary": "Mengambil data absensi",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Nomor halaman",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Jumlah data per halaman",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter berdasarkan bulan (MM)",
+                        "name": "month",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter berdasarkan status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter berdasarkan waktu",
+                        "name": "waktu",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filter berdasarkan ID Mahasantri",
+                        "name": "mahasantri_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Data absensi retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve absensi",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            },
             "post": {
                 "security": [
                     {
@@ -52,7 +130,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid request body or Absensi already recorded for this time",
+                        "description": "Invalid request body or Absensi already recorded for this date",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
                         }
@@ -71,99 +149,6 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Failed to create absensi",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/absensi/mahasantri/{mahasantri_id}": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Endpoint ini digunakan untuk mendapatkan daftar absensi dari Mahasantri tertentu berdasarkan filter tanggal, waktu, status, serta mendukung paginasi.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Absensi"
-                ],
-                "summary": "Mendapatkan daftar absensi berdasarkan Mahasantri ID dengan filter tanggal, waktu, dan status",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Mahasantri ID",
-                        "name": "mahasantri_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Tanggal awal filter (format: dd-mm-yyyy)",
-                        "name": "start_date",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Tanggal akhir filter (format: dd-mm-yyyy)",
-                        "name": "end_date",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Waktu for filtering absensi",
-                        "name": "waktu",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Status for filtering absensi",
-                        "name": "status",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "default": 1,
-                        "description": "Page number for pagination",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "default": 10,
-                        "description": "Limit number of results per page",
-                        "name": "limit",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Absensi retrieved successfully",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid input or query parameters",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    },
-                    "404": {
-                        "description": "Mahasantri not found",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    },
-                    "500": {
-                        "description": "Failed to retrieve absensi",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
                         }
@@ -243,70 +228,106 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/absensi/mahasantri/{mahasantri_id}/per-month": {
-            "get": {
+        "/api/v1/absensi/{id}": {
+            "put": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Mengambil total absensi bulanan berdasarkan waktu (shubuh \u0026 isya) dan status (hadir, izin, alpa) dalam satu bulan tertentu.",
+                "description": "Endpoint ini digunakan untuk mengupdate data absensi berdasarkan ID.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "Absensi"
                 ],
-                "summary": "Mendapatkan ringkasan absensi bulanan Mahasantri",
+                "summary": "Mengupdate data absensi",
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "ID Mahasantri",
-                        "name": "mahasantri_id",
+                        "description": "ID Absensi",
+                        "name": "id",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "type": "string",
-                        "description": "Bulan (format: MM, contoh: 04 untuk April)",
-                        "name": "month",
-                        "in": "query",
-                        "required": true
+                        "description": "Data absensi",
+                        "name": "absensi",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.UpdateAbsensiRequestDTO"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Absensi updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
                     },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Absensi not found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to update absensi",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
                     {
-                        "type": "string",
-                        "description": "Tahun (format: YYYY, contoh: 2025)",
-                        "name": "year",
-                        "in": "query",
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Endpoint ini digunakan untuk menghapus data absensi berdasarkan ID yang diberikan.",
+                "tags": [
+                    "Absensi"
+                ],
+                "summary": "Menghapus data absensi berdasarkan ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID Absensi",
+                        "name": "id",
+                        "in": "path",
                         "required": true
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Berhasil mengambil ringkasan absensi bulanan",
+                        "description": "Absensi deleted successfully",
                         "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/utils.SuccessResponseSwagger"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/dto.AbsensiMonthlySummaryDTO"
-                                        }
-                                    }
-                                }
-                            ]
+                            "$ref": "#/definitions/utils.Response"
                         }
                     },
-                    "400": {
-                        "description": "Bad Request - Format salah atau parameter tidak lengkap",
+                    "404": {
+                        "description": "Absensi not found",
                         "schema": {
-                            "$ref": "#/definitions/utils.ErrorResponseSwagger"
+                            "$ref": "#/definitions/utils.Response"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error - Gagal mengambil data absensi",
+                        "description": "Failed to delete absensi",
                         "schema": {
-                            "$ref": "#/definitions/utils.ErrorResponseSwagger"
+                            "$ref": "#/definitions/utils.Response"
                         }
                     }
                 }
@@ -2041,11 +2062,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "isya": {
-                    "description": "hadir / absen / izin / belum-absen",
+                    "description": "hadir / absen / izin / libur / belum-absen",
                     "type": "string"
                 },
                 "subuh": {
-                    "description": "hadir / absen / izin / belum-absen",
+                    "description": "hadir / absen / izin / libur / belum-absen",
                     "type": "string"
                 },
                 "tanggal": {
@@ -2054,52 +2075,35 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.AbsensiMonthlySummaryDTO": {
-            "type": "object",
-            "properties": {
-                "isya": {
-                    "$ref": "#/definitions/dto.StatusCountDTO"
-                },
-                "month": {
-                    "type": "string"
-                },
-                "shubuh": {
-                    "$ref": "#/definitions/dto.StatusCountDTO"
-                },
-                "total_alpa": {
-                    "type": "integer"
-                },
-                "total_hadir": {
-                    "type": "integer"
-                },
-                "total_izin": {
-                    "type": "integer"
-                },
-                "year": {
-                    "type": "integer"
-                }
-            }
-        },
         "dto.AbsensiRequestDTO": {
             "type": "object",
             "required": [
                 "mahasantri_id",
+                "mentor_id",
                 "status",
+                "tanggal",
                 "waktu"
             ],
             "properties": {
                 "mahasantri_id": {
-                    "description": "Validasi untuk memastikan MahasantriID ada",
+                    "type": "integer"
+                },
+                "mentor_id": {
                     "type": "integer"
                 },
                 "status": {
-                    "description": "\"Hadir\", \"Absen\", atau \"Izin\"",
+                    "description": "\"Hadir\", \"Absen\", \"Izin\" atau \"Libur\"",
                     "type": "string",
                     "enum": [
                         "hadir",
                         "absen",
-                        "izin"
+                        "izin",
+                        "libur"
                     ]
+                },
+                "tanggal": {
+                    "description": "Format: dd-mm-yyyy",
+                    "type": "string"
                 },
                 "waktu": {
                     "description": "\"Shubuh\" atau \"Isya\"",
@@ -2353,17 +2357,20 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.StatusCountDTO": {
+        "dto.UpdateAbsensiRequestDTO": {
             "type": "object",
             "properties": {
-                "alpa": {
-                    "type": "integer"
+                "status": {
+                    "description": "\"Hadir\", \"Absen\", \"Izin\" atau \"Libur\"",
+                    "type": "string"
                 },
-                "hadir": {
-                    "type": "integer"
+                "tanggal": {
+                    "description": "Format: dd-mm-yyyy",
+                    "type": "string"
                 },
-                "izin": {
-                    "type": "integer"
+                "waktu": {
+                    "description": "\"Shubuh\" atau \"Isya\"",
+                    "type": "string"
                 }
             }
         },
