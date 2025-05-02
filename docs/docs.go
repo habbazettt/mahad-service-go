@@ -2092,7 +2092,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "status": {
-                    "description": "\"Hadir\", \"Absen\", \"Izin\" atau \"Libur\"",
+                    "description": "\"Hadir\", \"Absen\", \"Izin\"",
                     "type": "string",
                     "enum": [
                         "hadir",
@@ -2361,7 +2361,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "status": {
-                    "description": "\"Hadir\", \"Absen\", \"Izin\" atau \"Libur\"",
+                    "description": "\"Hadir\", \"Absen\", \"Izin\"",
                     "type": "string"
                 },
                 "tanggal": {

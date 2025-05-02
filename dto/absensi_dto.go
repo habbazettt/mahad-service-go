@@ -6,13 +6,13 @@ type AbsensiRequestDTO struct {
 	MahasantriID uint   `json:"mahasantri_id" validate:"required"`
 	MentorID     uint   `json:"mentor_id" validate:"required"`
 	Waktu        string `json:"waktu" validate:"required,oneof=shubuh isya"`             // "Shubuh" atau "Isya"
-	Status       string `json:"status" validate:"required,oneof=hadir absen izin libur"` // "Hadir", "Absen", "Izin" atau "Libur"
+	Status       string `json:"status" validate:"required,oneof=hadir absen izin libur"` // "Hadir", "Absen", "Izin"
 	Tanggal      string `json:"tanggal" validate:"required"`                             // Format: dd-mm-yyyy
 }
 
 type UpdateAbsensiRequestDTO struct {
 	Waktu   *string `json:"waktu,omitempty"`   // "Shubuh" atau "Isya"
-	Status  *string `json:"status,omitempty"`  // "Hadir", "Absen", "Izin" atau "Libur"
+	Status  *string `json:"status,omitempty"`  // "Hadir", "Absen", "Izin"
 	Tanggal *string `json:"tanggal,omitempty"` // Format: dd-mm-yyyy
 }
 

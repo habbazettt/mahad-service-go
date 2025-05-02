@@ -19,7 +19,7 @@ definitions:
       mentor_id:
         type: integer
       status:
-        description: '"Hadir", "Absen", "Izin" atau "Libur"'
+        description: '"Hadir", "Absen", "Izin"'
         enum:
         - hadir
         - absen
@@ -214,7 +214,7 @@ definitions:
   dto.UpdateAbsensiRequestDTO:
     properties:
       status:
-        description: '"Hadir", "Absen", "Izin" atau "Libur"'
+        description: '"Hadir", "Absen", "Izin"'
         type: string
       tanggal:
         description: 'Format: dd-mm-yyyy'

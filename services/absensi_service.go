@@ -228,7 +228,7 @@ func (s *AbsensiService) GetAbsensi(c *fiber.Ctx) error {
 	}).Info("Paginated absensi retrieved successfully")
 
 	// Return response dengan pagination informasi
-	return c.JSON(response)
+	return utils.SuccessResponse(c, fiber.StatusOK, "Data absensi retrieved successfully", response)
 }
 
 // GetAbsensiDailySummary godoc
@@ -273,6 +273,18 @@ func (s *AbsensiService) GetAbsensiDailySummary(c *fiber.Ctx) error {
 		return utils.ResponseError(c, fiber.StatusInternalServerError, "Failed to fetch absensi", err.Error())
 	}
 
+	// Fetch Mahasantri details
+	var mahasantri models.Mahasantri
+	if err := s.DB.Where("id = ?", mahasantriID).First(&mahasantri).Error; err != nil {
+		return utils.ResponseError(c, fiber.StatusInternalServerError, "Failed to fetch Mahasantri details", err.Error())
+	}
+
+	// Fetch Mentor details
+	var mentor models.Mentor
+	if err := s.DB.Where("id = ?", mahasantri.MentorID).First(&mentor).Error; err != nil {
+		return utils.ResponseError(c, fiber.StatusInternalServerError, "Failed to fetch Mentor details", err.Error())
+	}
+
 	// Indexing absensi per tanggal & waktu
 	absensiMap := make(map[string]map[string]string) // tanggal -> waktu -> status
 	for _, a := range absensi {
@@ -312,7 +324,36 @@ func (s *AbsensiService) GetAbsensiDailySummary(c *fiber.Ctx) error {
 		})
 	}
 
-	return utils.SuccessResponse(c, fiber.StatusOK, "Daily summary retrieved successfully", summary)
+	info := fiber.Map{
+		"month": month,
+		"year":  year,
+	}
+
+	// Membuat response dengan format standar dan pagination info jika diperlukan
+	responseData := fiber.Map{
+		"mahasantri": fiber.Map{
+			"id":      mahasantri.ID,
+			"nama":    mahasantri.Nama,
+			"nim":     mahasantri.NIM,
+			"jurusan": mahasantri.Jurusan,
+			"gender":  mahasantri.Gender,
+		},
+		"mentor": fiber.Map{
+			"id":     mentor.ID,
+			"nama":   mentor.Nama,
+			"email":  mentor.Email,
+			"gender": mentor.Gender,
+		},
+		"daily_summary": summary,
+		"info":          info,
+	}
+
+	// Return response dengan status 200 OK
+	return c.JSON(fiber.Map{
+		"status":  true,
+		"message": "Daily summary retrieved successfully",
+		"data":    responseData,
+	})
 }
 
 // UpdateAbsensi - Mengupdate data absensi
