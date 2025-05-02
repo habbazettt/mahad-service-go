@@ -5,9 +5,9 @@ import "time"
 type AbsensiRequestDTO struct {
 	MahasantriID uint   `json:"mahasantri_id" validate:"required"`
 	MentorID     uint   `json:"mentor_id" validate:"required"`
-	Waktu        string `json:"waktu" validate:"required,oneof=shubuh isya"`             // "Shubuh" atau "Isya"
-	Status       string `json:"status" validate:"required,oneof=hadir absen izin libur"` // "Hadir", "Absen", "Izin"
-	Tanggal      string `json:"tanggal" validate:"required"`                             // Format: dd-mm-yyyy
+	Waktu        string `json:"waktu" validate:"required,oneof=shubuh isya"`       // "Shubuh" atau "Isya"
+	Status       string `json:"status" validate:"required,oneof=hadir absen izin"` // "Hadir", "Absen", "Izin"
+	Tanggal      string `json:"tanggal" validate:"required"`                       // Format: dd-mm-yyyy
 }
 
 type UpdateAbsensiRequestDTO struct {
@@ -45,23 +45,8 @@ type MahasantriResponseDTO struct {
 }
 
 type AbsensiDailySummaryDTO struct {
+	Hari    string `json:"hari"`    // Senin, Selasa, Rabu, Kamis, Jumat, Sabtu, Minggu
 	Tanggal string `json:"tanggal"` // Format: dd-mm-yyyy
 	Shubuh  string `json:"shubuh"`  // hadir / absen / izin / libur / belum-absen
 	Isya    string `json:"isya"`    // hadir / absen / izin / libur / belum-absen
-}
-
-type AbsensiMonthlySummaryDTO struct {
-	Month      string         `json:"month"`
-	Year       int            `json:"year"`
-	TotalHadir int            `json:"total_hadir"`
-	TotalIzin  int            `json:"total_izin"`
-	TotalAlpa  int            `json:"total_alpa"`
-	Shubuh     StatusCountDTO `json:"shubuh"`
-	Isya       StatusCountDTO `json:"isya"`
-}
-
-type StatusCountDTO struct {
-	Hadir int `json:"hadir"`
-	Izin  int `json:"izin"`
-	Alpa  int `json:"alpa"`
 }

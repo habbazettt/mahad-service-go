@@ -26,7 +26,7 @@ type AbsensiService struct {
 // @Produce json
 // @Param request body dto.AbsensiRequestDTO true "Data Absensi"
 // @Success 201 {object} utils.Response "Absensi created successfully"
-// @Failure 400 {object} utils.Response "Invalid request body or Absensi already recorded for this date"
+// @Failure 400 {object} utils.Response "Invalid request body or Absensi already recorded for this date and time"
 // @Failure 401 {object} utils.Response "Unauthorized"
 // @Failure 404 {object} utils.Response "Mahasantri not found"
 // @Failure 500 {object} utils.Response "Failed to create absensi"
@@ -59,19 +59,25 @@ func (s *AbsensiService) CreateAbsensi(c *fiber.Ctx) error {
 		return utils.ResponseError(c, fiber.StatusBadRequest, "Invalid date format", err.Error())
 	}
 
-	// Memeriksa apakah absensi sudah tercatat untuk tanggal yang diinput
+	// Memeriksa apakah hari adalah Sabtu atau Minggu
+	if tanggal.Weekday() == time.Saturday || tanggal.Weekday() == time.Sunday {
+		logrus.Warn("Absensi tidak diperbolehkan pada hari Sabtu atau Minggu")
+		return utils.ResponseError(c, fiber.StatusBadRequest, "Absensi is not allowed on Saturdays or Sundays", "Absensi tidak diperbolehkan pada hari Sabtu atau Minggu")
+	}
+
+	// Memeriksa apakah absensi sudah tercatat untuk tanggal dan waktu yang diinput
 	var existingAbsensi models.Absensi
-	if err := s.DB.Where("mahasantri_id = ? AND tanggal = ?", req.MahasantriID, tanggal).First(&existingAbsensi).Error; err == nil {
-		logrus.Warn("Absensi sudah tercatat untuk tanggal ini")
-		return utils.ResponseError(c, fiber.StatusBadRequest, "Absensi already recorded for this date", "Absensi sudah tercatat untuk tanggal ini")
+	if err := s.DB.Where("mahasantri_id = ? AND tanggal = ? AND waktu = ?", req.MahasantriID, tanggal, req.Waktu).First(&existingAbsensi).Error; err == nil {
+		logrus.Warn("Absensi sudah tercatat untuk tanggal dan waktu ini")
+		return utils.ResponseError(c, fiber.StatusBadRequest, "Absensi already recorded for this date and time", "Absensi sudah tercatat untuk tanggal dan waktu ini")
 	}
 
 	absensi := models.Absensi{
 		MahasantriID: req.MahasantriID,
-		MentorID:     req.MentorID, // Menggunakan MentorID dari request
-		Waktu:        req.Waktu,    // Waktu tetap diambil dari request
+		MentorID:     req.MentorID,
+		Waktu:        req.Waktu,
 		Status:       req.Status,
-		Tanggal:      tanggal, // Tanggal yang sudah diparsing
+		Tanggal:      tanggal,
 	}
 
 	if err := s.DB.Create(&absensi).Error; err != nil {
@@ -91,7 +97,7 @@ func (s *AbsensiService) CreateAbsensi(c *fiber.Ctx) error {
 		MentorID:     absensiWithRelations.MentorID,
 		Waktu:        absensiWithRelations.Waktu,
 		Status:       absensiWithRelations.Status,
-		Tanggal:      absensiWithRelations.GetFormattedTanggal(), // Format tanggal untuk response
+		Tanggal:      absensiWithRelations.GetFormattedTanggal(),
 		CreatedAt:    absensiWithRelations.CreatedAt,
 		UpdatedAt:    absensiWithRelations.UpdatedAt,
 		Mentor: dto.MentorResponseDTO{
@@ -214,12 +220,8 @@ func (s *AbsensiService) GetAbsensi(c *fiber.Ctx) error {
 
 	// Prepare final response
 	response := fiber.Map{
-		"data": fiber.Map{
-			"absensi":    responseAbsensi,
-			"pagination": pagination,
-		},
-		"message": "Data absensi retrieved successfully",
-		"status":  true,
+		"absensi":    responseAbsensi,
+		"pagination": pagination,
 	}
 
 	logrus.WithFields(logrus.Fields{
@@ -227,8 +229,8 @@ func (s *AbsensiService) GetAbsensi(c *fiber.Ctx) error {
 		"limit": limit,
 	}).Info("Paginated absensi retrieved successfully")
 
-	// Return response dengan pagination informasi
-	return utils.SuccessResponse(c, fiber.StatusOK, "Data absensi retrieved successfully", response)
+	// Return response with pagination information
+	return utils.SuccessResponse(c, fiber.StatusOK, "Berhasil mengambil data absensi", response)
 }
 
 // GetAbsensiDailySummary godoc
@@ -317,8 +319,10 @@ func (s *AbsensiService) GetAbsensiDailySummary(c *fiber.Ctx) error {
 			}
 		}
 
+		// Tambahkan detail hari ke dalam ringkasan
 		summary = append(summary, dto.AbsensiDailySummaryDTO{
 			Tanggal: tanggal,
+			Hari:    getNamaHari(d.Weekday()),
 			Shubuh:  shubuh,
 			Isya:    isya,
 		})
@@ -467,4 +471,26 @@ func (s *AbsensiService) DeleteAbsensi(c *fiber.Ctx) error {
 
 	logrus.WithField("absensi_id", id).Info("Absensi deleted successfully")
 	return utils.SuccessResponse(c, fiber.StatusOK, "Absensi deleted successfully", nil)
+}
+
+// Fungsi untuk mengonversi nama hari ke dalam bahasa Indonesia
+func getNamaHari(weekday time.Weekday) string {
+	switch weekday {
+	case time.Monday:
+		return "Senin"
+	case time.Tuesday:
+		return "Selasa"
+	case time.Wednesday:
+		return "Rabu"
+	case time.Thursday:
+		return "Kamis"
+	case time.Friday:
+		return "Jumat"
+	case time.Saturday:
+		return "Sabtu"
+	case time.Sunday:
+		return "Minggu"
+	default:
+		return ""
+	}
 }

@@ -2061,6 +2061,10 @@ const docTemplate = `{
         "dto.AbsensiDailySummaryDTO": {
             "type": "object",
             "properties": {
+                "hari": {
+                    "description": "Senin, Selasa, Rabu, Kamis, Jumat, Sabtu, Minggu",
+                    "type": "string"
+                },
                 "isya": {
                     "description": "hadir / absen / izin / libur / belum-absen",
                     "type": "string"
