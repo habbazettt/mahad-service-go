@@ -131,6 +131,8 @@ func (s *AbsensiService) CreateAbsensi(c *fiber.Ctx) error {
 // @Param status query string false "Filter berdasarkan status"
 // @Param waktu query string false "Filter berdasarkan waktu"
 // @Param mahasantri_id query int false "Filter berdasarkan ID Mahasantri"
+// @Param mentor_id query int false "Filter berdasarkan ID Mentor"
+// @Param sort query string false "Sort by created_at" Enums(asc, desc) Default(desc)
 // @Success 200 {object} utils.Response "Data absensi retrieved successfully"
 // @Failure 400 {object} utils.Response "Invalid request"
 // @Failure 500 {object} utils.Response "Failed to retrieve absensi"
@@ -150,6 +152,8 @@ func (s *AbsensiService) GetAbsensi(c *fiber.Ctx) error {
 	status := c.Query("status")
 	waktu := c.Query("waktu")
 	mahasantriID := c.Query("mahasantri_id")
+	mentorID := c.Query("mentor_id")
+	sort := c.Query("sort", "desc")
 
 	var absensi []models.Absensi
 	var total int64
@@ -170,6 +174,9 @@ func (s *AbsensiService) GetAbsensi(c *fiber.Ctx) error {
 	if mahasantriID != "" {
 		query = query.Where("mahasantri_id = ?", mahasantriID)
 	}
+	if mentorID != "" {
+		query = query.Where("mentor_id = ?", mentorID)
+	}
 
 	// Count total records
 	if err := query.Count(&total).Error; err != nil {
@@ -177,13 +184,23 @@ func (s *AbsensiService) GetAbsensi(c *fiber.Ctx) error {
 		return utils.ResponseError(c, fiber.StatusInternalServerError, "Failed to retrieve absensi", err.Error())
 	}
 
-	// Apply pagination and preload relations
-	if err := query.Offset((page - 1) * limit).Limit(limit).Preload("Mentor").Preload("Mahasantri").Order("created_at asc").Find(&absensi).Error; err != nil {
+	orderDirection := "desc"
+	if sort == "asc" {
+		orderDirection = "asc"
+	}
+
+	// Apply pagination, preload relations, and apply sorting by created_at
+	if err := query.Offset((page - 1) * limit).
+		Limit(limit).
+		Preload("Mentor").
+		Preload("Mahasantri").
+		Order("created_at " + orderDirection).
+		Find(&absensi).Error; err != nil {
 		logrus.WithError(err).Error("Failed to retrieve absensi")
 		return utils.ResponseError(c, fiber.StatusInternalServerError, "Failed to retrieve absensi", err.Error())
 	}
 
-	// Prepare response
+	// Prepare response DTOs
 	responseAbsensi := make([]dto.AbsensiResponseDTO, len(absensi))
 	for i, a := range absensi {
 		responseAbsensi[i] = dto.AbsensiResponseDTO{
@@ -211,14 +228,13 @@ func (s *AbsensiService) GetAbsensi(c *fiber.Ctx) error {
 		}
 	}
 
-	// Set pagination data
+	// Pagination info
 	pagination := fiber.Map{
 		"current_page": page,
 		"total_data":   total,
 		"total_pages":  int(math.Ceil(float64(total) / float64(limit))),
 	}
 
-	// Prepare final response
 	response := fiber.Map{
 		"absensi":    responseAbsensi,
 		"pagination": pagination,
@@ -229,7 +245,6 @@ func (s *AbsensiService) GetAbsensi(c *fiber.Ctx) error {
 		"limit": limit,
 	}).Info("Paginated absensi retrieved successfully")
 
-	// Return response with pagination information
 	return utils.SuccessResponse(c, fiber.StatusOK, "Berhasil mengambil data absensi", response)
 }
 

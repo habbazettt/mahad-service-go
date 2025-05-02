@@ -71,6 +71,23 @@ const docTemplate = `{
                         "description": "Filter berdasarkan ID Mahasantri",
                         "name": "mahasantri_id",
                         "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filter berdasarkan ID Mentor",
+                        "name": "mentor_id",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "default": "desc",
+                        "description": "Sort by created_at",
+                        "name": "sort",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -130,7 +147,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid request body or Absensi already recorded for this date",
+                        "description": "Invalid request body or Absensi already recorded for this date and time",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
                         }
@@ -2101,8 +2118,7 @@ const docTemplate = `{
                     "enum": [
                         "hadir",
                         "absen",
-                        "izin",
-                        "libur"
+                        "izin"
                     ]
                 },
                 "tanggal": {

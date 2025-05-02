@@ -27,7 +27,6 @@ definitions:
         - hadir
         - absen
         - izin
-        - libur
         type: string
       tanggal:
         description: 'Format: dd-mm-yyyy'
@@ -452,6 +451,18 @@ paths:
         in: query
         name: mahasantri_id
         type: integer
+      - description: Filter berdasarkan ID Mentor
+        in: query
+        name: mentor_id
+        type: integer
+      - default: desc
+        description: Sort by created_at
+        enum:
+        - asc
+        - desc
+        in: query
+        name: sort
+        type: string
       produces:
       - application/json
       responses:
@@ -493,6 +504,7 @@ paths:
             $ref: '#/definitions/utils.Response'
         "400":
           description: Invalid request body or Absensi already recorded for this date
+            and time
           schema:
             $ref: '#/definitions/utils.Response'
         "401":
