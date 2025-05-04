@@ -216,36 +216,21 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Berhasil mengambil ringkasan absensi harian",
+                        "description": "Data absensi retrieved successfully",
                         "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/utils.SuccessResponseSwagger"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/dto.AbsensiDailySummaryDTO"
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
+                            "$ref": "#/definitions/utils.Response"
                         }
                     },
                     "400": {
-                        "description": "Bad Request - Format salah atau parameter tidak lengkap",
+                        "description": "Absensi not found",
                         "schema": {
-                            "$ref": "#/definitions/utils.ErrorResponseSwagger"
+                            "$ref": "#/definitions/utils.Response"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error - Gagal mengambil data absensi",
+                        "description": "Failed to retrieve absensi",
                         "schema": {
-                            "$ref": "#/definitions/utils.ErrorResponseSwagger"
+                            "$ref": "#/definitions/utils.Response"
                         }
                     }
                 }
@@ -2128,27 +2113,6 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "dto.AbsensiDailySummaryDTO": {
-            "type": "object",
-            "properties": {
-                "hari": {
-                    "description": "Senin, Selasa, Rabu, Kamis, Jumat, Sabtu, Minggu",
-                    "type": "string"
-                },
-                "isya": {
-                    "description": "hadir / alpa / izin / libur / belum-absen",
-                    "type": "string"
-                },
-                "shubuh": {
-                    "description": "hadir / alpa / izin / libur / belum-absen",
-                    "type": "string"
-                },
-                "tanggal": {
-                    "description": "Format: dd-mm-yyyy",
-                    "type": "string"
-                }
-            }
-        },
         "dto.AbsensiRequestDTO": {
             "type": "object",
             "required": [
@@ -2588,23 +2552,6 @@ const docTemplate = `{
                 }
             }
         },
-        "utils.ErrorResponseSwagger": {
-            "type": "object",
-            "properties": {
-                "error": {
-                    "type": "string",
-                    "example": "Invalid Mahasantri ID"
-                },
-                "message": {
-                    "type": "string",
-                    "example": "Bad Request"
-                },
-                "status": {
-                    "type": "string",
-                    "example": "error"
-                }
-            }
-        },
         "utils.Pagination": {
             "type": "object",
             "properties": {
@@ -2699,20 +2646,6 @@ const docTemplate = `{
                 "status": {
                     "type": "boolean",
                     "example": true
-                }
-            }
-        },
-        "utils.SuccessResponseSwagger": {
-            "type": "object",
-            "properties": {
-                "data": {},
-                "message": {
-                    "type": "string",
-                    "example": "Request successful"
-                },
-                "status": {
-                    "type": "string",
-                    "example": "success"
                 }
             }
         }

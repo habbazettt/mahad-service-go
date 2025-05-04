@@ -34,3 +34,8 @@ type Pagination struct {
 	TotalData   int `json:"total_data"`
 	TotalPages  int `json:"total_pages"`
 }
+
+type ErrorResponse struct {
+	Message string      `json:"message"`
+	Details interface{} `json:"details"`
+}

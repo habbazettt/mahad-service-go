@@ -21,11 +21,11 @@ type AbsensiService struct {
 
 // CreateAbsensi - Membuat absensi baru
 // @Summary Membuat absensi baru untuk Mahasantri
-// @Description Endpoint ini digunakan untuk membuat absensi baru untuk Mahasantri berdasarkan data yang dikirimkan oleh mentor.
+// @Description Endpoint ini digunakan untuk membuat absensi baru untuk Mahasantri berdasarkan data yang dikirimkan oleh mentor. Dapat menerima satu atau beberapa data absensi dalam satu request.
 // @Tags Absensi
 // @Accept json
 // @Produce json
-// @Param request body dto.AbsensiRequestDTO true "Data Absensi"
+// @Param request body []dto.AbsensiRequestDTO true "Data Absensi dalam bentuk array"
 // @Success 201 {object} utils.Response "Absensi created successfully"
 // @Failure 400 {object} utils.Response "Invalid request body or Absensi already recorded for this date and time"
 // @Failure 401 {object} utils.Response "Unauthorized"
@@ -34,7 +34,7 @@ type AbsensiService struct {
 // @Security BearerAuth
 // @Router /api/v1/absensi [post]
 func (s *AbsensiService) CreateAbsensi(c *fiber.Ctx) error {
-	var req dto.AbsensiRequestDTO
+	var req []dto.AbsensiRequestDTO
 
 	if err := c.BodyParser(&req); err != nil {
 		logrus.WithError(err).Error("Failed to parse request body")
@@ -47,76 +47,115 @@ func (s *AbsensiService) CreateAbsensi(c *fiber.Ctx) error {
 		return utils.ResponseError(c, fiber.StatusUnauthorized, "Unauthorized", "Authorization token is missing")
 	}
 
-	var mahasantri models.Mahasantri
-	if err := s.DB.First(&mahasantri, req.MahasantriID).Error; err != nil {
-		logrus.WithError(err).Error("Mahasantri not found")
-		return utils.ResponseError(c, fiber.StatusNotFound, "Mahasantri not found", err.Error())
+	tx := s.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	var batchResponse []dto.AbsensiResponseDTO
+	var errors []utils.ErrorResponse
+
+	for _, absensiReq := range req {
+		// Parsing tanggal dari string ke time.Time
+		tanggal, err := time.Parse("02-01-2006", absensiReq.Tanggal)
+		if err != nil {
+			errors = append(errors, utils.ErrorResponse{
+				Message: "Invalid date format",
+				Details: err.Error(),
+			})
+			continue
+		}
+
+		// Memeriksa apakah hari adalah Sabtu atau Minggu
+		if tanggal.Weekday() == time.Saturday || tanggal.Weekday() == time.Sunday {
+			errors = append(errors, utils.ErrorResponse{
+				Message: "Absensi is not allowed on Saturdays or Sundays",
+				Details: "Absensi tidak diperbolehkan pada hari Sabtu atau Minggu",
+			})
+			continue
+		}
+
+		var mahasantri models.Mahasantri
+		if err := tx.First(&mahasantri, absensiReq.MahasantriID).Error; err != nil {
+			errors = append(errors, utils.ErrorResponse{
+				Message: "Mahasantri not found",
+				Details: err.Error(),
+			})
+			continue
+		}
+
+		// Memeriksa apakah absensi sudah tercatat untuk tanggal dan waktu yang diinput
+		var existingAbsensi models.Absensi
+		if err := tx.Where("mahasantri_id = ? AND tanggal = ? AND waktu = ?",
+			absensiReq.MahasantriID, tanggal, absensiReq.Waktu).First(&existingAbsensi).Error; err == nil {
+			errors = append(errors, utils.ErrorResponse{
+				Message: "Absensi already recorded for this date and time",
+				Details: "Absensi sudah tercatat untuk tanggal dan waktu ini",
+			})
+			continue
+		}
+
+		absensi := models.Absensi{
+			MahasantriID: absensiReq.MahasantriID,
+			MentorID:     absensiReq.MentorID,
+			Waktu:        absensiReq.Waktu,
+			Status:       absensiReq.Status,
+			Tanggal:      tanggal,
+		}
+
+		if err := tx.Create(&absensi).Error; err != nil {
+			errors = append(errors, utils.ErrorResponse{
+				Message: "Failed to create absensi",
+				Details: err.Error(),
+			})
+			continue
+		}
+
+		var absensiWithRelations models.Absensi
+		if err := tx.Preload("Mentor").Preload("Mahasantri").First(&absensiWithRelations, absensi.ID).Error; err != nil {
+			errors = append(errors, utils.ErrorResponse{
+				Message: "Failed to preload relations",
+				Details: err.Error(),
+			})
+			continue
+		}
+
+		response := dto.AbsensiResponseDTO{
+			ID:           absensiWithRelations.ID,
+			MahasantriID: absensiWithRelations.MahasantriID,
+			MentorID:     absensiWithRelations.MentorID,
+			Waktu:        absensiWithRelations.Waktu,
+			Status:       absensiWithRelations.Status,
+			Tanggal:      absensiWithRelations.GetFormattedTanggal(),
+			CreatedAt:    absensiWithRelations.CreatedAt,
+			UpdatedAt:    absensiWithRelations.UpdatedAt,
+			Mentor: dto.MentorResponseDTO{
+				ID:     absensiWithRelations.Mentor.ID,
+				Nama:   absensiWithRelations.Mentor.Nama,
+				Email:  absensiWithRelations.Mentor.Email,
+				Gender: absensiWithRelations.Mentor.Gender,
+			},
+			Mahasantri: dto.MahasantriResponseDTO{
+				ID:      absensiWithRelations.Mahasantri.ID,
+				Nama:    absensiWithRelations.Mahasantri.Nama,
+				NIM:     absensiWithRelations.Mahasantri.NIM,
+				Jurusan: absensiWithRelations.Mahasantri.Jurusan,
+				Gender:  absensiWithRelations.Mahasantri.Gender,
+			},
+		}
+		batchResponse = append(batchResponse, response)
 	}
 
-	// Parsing tanggal dari string ke time.Time
-	tanggal, err := time.Parse("02-01-2006", req.Tanggal)
-	if err != nil {
-		logrus.WithError(err).Error("Invalid date format")
-		return utils.ResponseError(c, fiber.StatusBadRequest, "Invalid date format", err.Error())
+	if len(errors) > 0 {
+		tx.Rollback()
+		return utils.ResponseError(c, fiber.StatusBadRequest, "Some requests failed", errors)
 	}
 
-	// Memeriksa apakah hari adalah Sabtu atau Minggu
-	if tanggal.Weekday() == time.Saturday || tanggal.Weekday() == time.Sunday {
-		logrus.Warn("Absensi tidak diperbolehkan pada hari Sabtu atau Minggu")
-		return utils.ResponseError(c, fiber.StatusBadRequest, "Absensi is not allowed on Saturdays or Sundays", "Absensi tidak diperbolehkan pada hari Sabtu atau Minggu")
-	}
+	tx.Commit()
 
-	// Memeriksa apakah absensi sudah tercatat untuk tanggal dan waktu yang diinput
-	var existingAbsensi models.Absensi
-	if err := s.DB.Where("mahasantri_id = ? AND tanggal = ? AND waktu = ?", req.MahasantriID, tanggal, req.Waktu).First(&existingAbsensi).Error; err == nil {
-		logrus.Warn("Absensi sudah tercatat untuk tanggal dan waktu ini")
-		return utils.ResponseError(c, fiber.StatusBadRequest, "Absensi already recorded for this date and time", "Absensi sudah tercatat untuk tanggal dan waktu ini")
-	}
-
-	absensi := models.Absensi{
-		MahasantriID: req.MahasantriID,
-		MentorID:     req.MentorID,
-		Waktu:        req.Waktu,
-		Status:       req.Status,
-		Tanggal:      tanggal,
-	}
-
-	if err := s.DB.Create(&absensi).Error; err != nil {
-		logrus.WithError(err).Error("Failed to create absensi")
-		return utils.ResponseError(c, fiber.StatusInternalServerError, "Failed to create absensi", err.Error())
-	}
-
-	var absensiWithRelations models.Absensi
-	if err := s.DB.Preload("Mentor").Preload("Mahasantri").First(&absensiWithRelations, absensi.ID).Error; err != nil {
-		logrus.WithError(err).Error("Failed to preload relations")
-		return utils.ResponseError(c, fiber.StatusInternalServerError, "Failed to preload relations", err.Error())
-	}
-
-	response := dto.AbsensiResponseDTO{
-		ID:           absensiWithRelations.ID,
-		MahasantriID: absensiWithRelations.MahasantriID,
-		MentorID:     absensiWithRelations.MentorID,
-		Waktu:        absensiWithRelations.Waktu,
-		Status:       absensiWithRelations.Status,
-		Tanggal:      absensiWithRelations.GetFormattedTanggal(),
-		CreatedAt:    absensiWithRelations.CreatedAt,
-		UpdatedAt:    absensiWithRelations.UpdatedAt,
-		Mentor: dto.MentorResponseDTO{
-			ID:     absensiWithRelations.Mentor.ID,
-			Nama:   absensiWithRelations.Mentor.Nama,
-			Email:  absensiWithRelations.Mentor.Email,
-			Gender: absensiWithRelations.Mentor.Gender,
-		},
-		Mahasantri: dto.MahasantriResponseDTO{
-			ID:      absensiWithRelations.Mahasantri.ID,
-			Nama:    absensiWithRelations.Mahasantri.Nama,
-			NIM:     absensiWithRelations.Mahasantri.NIM,
-			Jurusan: absensiWithRelations.Mahasantri.Jurusan,
-			Gender:  absensiWithRelations.Mahasantri.Gender,
-		},
-	}
-
-	return utils.SuccessResponse(c, fiber.StatusCreated, "Absensi created successfully", response)
+	return utils.SuccessResponse(c, fiber.StatusCreated, "Absensi created successfully", batchResponse)
 }
 
 // GetAbsensi - Mengambil data absensi
@@ -322,9 +361,9 @@ func (s *AbsensiService) GetAbsensiByID(c *fiber.Ctx) error {
 // @Param mahasantri_id path int true "ID Mahasantri"
 // @Param month query string true "Bulan (format: MM, contoh: 04 untuk April)"
 // @Param year query string true "Tahun (format: YYYY, contoh: 2025)"
-// @Success 200 {object} utils.SuccessResponseSwagger{data=[]dto.AbsensiDailySummaryDTO} "Berhasil mengambil ringkasan absensi harian"
-// @Failure 400 {object} utils.ErrorResponseSwagger "Bad Request - Format salah atau parameter tidak lengkap"
-// @Failure 500 {object} utils.ErrorResponseSwagger "Internal Server Error - Gagal mengambil data absensi"
+// @Success 200 {object} utils.Response "Data absensi retrieved successfully"
+// @Failure 400 {object} utils.Response "Absensi not found"
+// @Failure 500 {object} utils.Response "Failed to retrieve absensi"
 // @Router /api/v1/absensi/mahasantri/{mahasantri_id}/daily-summary [get]
 func (s *AbsensiService) GetAbsensiDailySummary(c *fiber.Ctx) error {
 	id := c.Params("mahasantri_id")
@@ -333,8 +372,8 @@ func (s *AbsensiService) GetAbsensiDailySummary(c *fiber.Ctx) error {
 		return utils.ResponseError(c, fiber.StatusBadRequest, "Invalid Mahasantri ID format", err.Error())
 	}
 
-	month := c.Query("month") // ex: 04
-	year := c.Query("year")   // ex: 2025
+	month := c.Query("month")
+	year := c.Query("year")
 
 	if month == "" || year == "" {
 		return utils.ResponseError(c, fiber.StatusBadRequest, "Missing query parameters", "month and year are required")
@@ -385,11 +424,16 @@ func (s *AbsensiService) GetAbsensiDailySummary(c *fiber.Ctx) error {
 		shubuh := "belum-absen"
 		isya := "belum-absen"
 
-		// Cek apakah hari tersebut adalah Sabtu atau Minggu
-		if d.Weekday() == time.Saturday || d.Weekday() == time.Sunday {
+		// Cek hari dalam seminggu
+		switch d.Weekday() {
+		case time.Saturday:
 			shubuh = "libur"
 			isya = "libur"
-		} else {
+		case time.Sunday:
+			shubuh = "libur"
+			// Isya tidak libur, jadi tetap "belum-absen" kecuali ada data
+		default:
+			// Hari biasa, cek absensi
 			if data, ok := absensiMap[tanggal]; ok {
 				if val, exists := data["shubuh"]; exists {
 					shubuh = val
