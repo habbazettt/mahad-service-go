@@ -6,10 +6,10 @@ definitions:
         description: Senin, Selasa, Rabu, Kamis, Jumat, Sabtu, Minggu
         type: string
       isya:
-        description: hadir / absen / izin / libur / belum-absen
+        description: hadir / alpa / izin / libur / belum-absen
         type: string
       shubuh:
-        description: hadir / absen / izin / libur / belum-absen
+        description: hadir / alpa / izin / libur / belum-absen
         type: string
       tanggal:
         description: 'Format: dd-mm-yyyy'
@@ -22,10 +22,10 @@ definitions:
       mentor_id:
         type: integer
       status:
-        description: '"Hadir", "Absen", "Izin"'
+        description: '"Hadir", "Alpa", "Izin"'
         enum:
         - hadir
-        - absen
+        - alpa
         - izin
         type: string
       tanggal:
@@ -216,7 +216,7 @@ definitions:
   dto.UpdateAbsensiRequestDTO:
     properties:
       status:
-        description: '"Hadir", "Absen", "Izin"'
+        description: '"Hadir", "Alpa", "Izin"'
         type: string
       tanggal:
         description: 'Format: dd-mm-yyyy'
@@ -455,6 +455,10 @@ paths:
         in: query
         name: mentor_id
         type: integer
+      - description: Filter berdasarkan tanggal (DD-MM-YYYY)
+        in: query
+        name: tanggal
+        type: string
       - default: desc
         description: Sort by created_at
         enum:
@@ -550,6 +554,37 @@ paths:
       security:
       - BearerAuth: []
       summary: Menghapus data absensi berdasarkan ID
+      tags:
+      - Absensi
+    get:
+      consumes:
+      - application/json
+      description: Endpoint ini digunakan untuk mengambil data absensi berdasarkan
+        ID.
+      parameters:
+      - description: ID Absensi
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Data absensi retrieved successfully
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Absensi not found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Failed to retrieve absensi
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Mengambil data absensi berdasarkan ID
       tags:
       - Absensi
     put:

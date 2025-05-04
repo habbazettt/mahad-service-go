@@ -1,6 +1,7 @@
 package services
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"strconv"
@@ -132,6 +133,7 @@ func (s *AbsensiService) CreateAbsensi(c *fiber.Ctx) error {
 // @Param waktu query string false "Filter berdasarkan waktu"
 // @Param mahasantri_id query int false "Filter berdasarkan ID Mahasantri"
 // @Param mentor_id query int false "Filter berdasarkan ID Mentor"
+// @Param tanggal query string false "Filter berdasarkan tanggal (DD-MM-YYYY)"
 // @Param sort query string false "Sort by created_at" Enums(asc, desc) Default(desc)
 // @Success 200 {object} utils.Response "Data absensi retrieved successfully"
 // @Failure 400 {object} utils.Response "Invalid request"
@@ -153,6 +155,7 @@ func (s *AbsensiService) GetAbsensi(c *fiber.Ctx) error {
 	waktu := c.Query("waktu")
 	mahasantriID := c.Query("mahasantri_id")
 	mentorID := c.Query("mentor_id")
+	tanggal := c.Query("tanggal")
 	sort := c.Query("sort", "desc")
 
 	var absensi []models.Absensi
@@ -177,6 +180,9 @@ func (s *AbsensiService) GetAbsensi(c *fiber.Ctx) error {
 	if mentorID != "" {
 		query = query.Where("mentor_id = ?", mentorID)
 	}
+	if tanggal != "" {
+		query = query.Where("tanggal = ?", tanggal)
+	}
 
 	// Count total records
 	if err := query.Count(&total).Error; err != nil {
@@ -189,7 +195,7 @@ func (s *AbsensiService) GetAbsensi(c *fiber.Ctx) error {
 		orderDirection = "asc"
 	}
 
-	// Apply pagination, preload relations, and apply sorting by created_at
+	// Apply pagination and preload relations
 	if err := query.Offset((page - 1) * limit).
 		Limit(limit).
 		Preload("Mentor").
@@ -246,6 +252,66 @@ func (s *AbsensiService) GetAbsensi(c *fiber.Ctx) error {
 	}).Info("Paginated absensi retrieved successfully")
 
 	return utils.SuccessResponse(c, fiber.StatusOK, "Berhasil mengambil data absensi", response)
+}
+
+// GetAbsensiByID - Mengambil data absensi berdasarkan ID
+// @Summary Mengambil data absensi berdasarkan ID
+// @Description Endpoint ini digunakan untuk mengambil data absensi berdasarkan ID.
+// @Tags Absensi
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "ID Absensi"
+// @Success 200 {object} utils.Response "Data absensi retrieved successfully"
+// @Failure 404 {object} utils.Response "Absensi not found"
+// @Failure 500 {object} utils.Response "Failed to retrieve absensi"
+// @Router /api/v1/absensi/{id} [get]
+func (s *AbsensiService) GetAbsensiByID(c *fiber.Ctx) error {
+	id := c.Params("id")
+
+	var absensi models.Absensi
+
+	// Find absensi by ID and preload relations
+	if err := s.DB.Preload("Mentor").Preload("Mahasantri").First(&absensi, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return utils.ResponseError(c, fiber.StatusNotFound, "Absensi not found", err.Error())
+		}
+		logrus.WithError(err).Error("Failed to retrieve absensi")
+		return utils.ResponseError(c, fiber.StatusInternalServerError, "Failed to retrieve absensi", err.Error())
+	}
+
+	// Prepare response DTO
+	responseAbsensi := dto.AbsensiResponseDTO{
+		ID:           absensi.ID,
+		MahasantriID: absensi.MahasantriID,
+		MentorID:     absensi.MentorID,
+		Waktu:        absensi.Waktu,
+		Status:       absensi.Status,
+		Tanggal:      absensi.GetFormattedTanggal(),
+		CreatedAt:    absensi.CreatedAt,
+		UpdatedAt:    absensi.UpdatedAt,
+		Mentor: dto.MentorResponseDTO{
+			ID:     absensi.Mentor.ID,
+			Nama:   absensi.Mentor.Nama,
+			Email:  absensi.Mentor.Email,
+			Gender: absensi.Mentor.Gender,
+		},
+		Mahasantri: dto.MahasantriResponseDTO{
+			ID:      absensi.Mahasantri.ID,
+			Nama:    absensi.Mahasantri.Nama,
+			NIM:     absensi.Mahasantri.NIM,
+			Jurusan: absensi.Mahasantri.Jurusan,
+			Gender:  absensi.Mahasantri.Gender,
+		},
+	}
+
+	logrus.WithFields(logrus.Fields{
+		"id": id,
+	}).Info("Absensi retrieved successfully")
+
+	return utils.SuccessResponse(c, fiber.StatusOK, "Berhasil mengambil data absensi", fiber.Map{
+		"absensi": responseAbsensi,
+	})
 }
 
 // GetAbsensiDailySummary godoc

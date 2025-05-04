@@ -79,6 +79,12 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "type": "string",
+                        "description": "Filter berdasarkan tanggal (DD-MM-YYYY)",
+                        "name": "tanggal",
+                        "in": "query"
+                    },
+                    {
                         "enum": [
                             "asc",
                             "desc"
@@ -246,6 +252,53 @@ const docTemplate = `{
             }
         },
         "/api/v1/absensi/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Endpoint ini digunakan untuk mengambil data absensi berdasarkan ID.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Absensi"
+                ],
+                "summary": "Mengambil data absensi berdasarkan ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID Absensi",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Data absensi retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Absensi not found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve absensi",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            },
             "put": {
                 "security": [
                     {
@@ -2083,11 +2136,11 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "isya": {
-                    "description": "hadir / absen / izin / libur / belum-absen",
+                    "description": "hadir / alpa / izin / libur / belum-absen",
                     "type": "string"
                 },
                 "shubuh": {
-                    "description": "hadir / absen / izin / libur / belum-absen",
+                    "description": "hadir / alpa / izin / libur / belum-absen",
                     "type": "string"
                 },
                 "tanggal": {
@@ -2113,11 +2166,11 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "status": {
-                    "description": "\"Hadir\", \"Absen\", \"Izin\"",
+                    "description": "\"Hadir\", \"Alpa\", \"Izin\"",
                     "type": "string",
                     "enum": [
                         "hadir",
-                        "absen",
+                        "alpa",
                         "izin"
                     ]
                 },
@@ -2381,7 +2434,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "status": {
-                    "description": "\"Hadir\", \"Absen\", \"Izin\"",
+                    "description": "\"Hadir\", \"Alpa\", \"Izin\"",
                     "type": "string"
                 },
                 "tanggal": {
