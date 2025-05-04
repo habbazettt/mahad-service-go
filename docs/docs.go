@@ -123,7 +123,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Endpoint ini digunakan untuk membuat absensi baru untuk Mahasantri berdasarkan data yang dikirimkan oleh mentor.",
+                "description": "Endpoint ini digunakan untuk membuat absensi baru untuk Mahasantri berdasarkan data yang dikirimkan oleh mentor. Dapat menerima satu atau beberapa data absensi dalam satu request.",
                 "consumes": [
                     "application/json"
                 ],
@@ -136,12 +136,15 @@ const docTemplate = `{
                 "summary": "Membuat absensi baru untuk Mahasantri",
                 "parameters": [
                     {
-                        "description": "Data Absensi",
+                        "description": "Data Absensi dalam bentuk array",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.AbsensiRequestDTO"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.AbsensiRequestDTO"
+                            }
                         }
                     }
                 ],

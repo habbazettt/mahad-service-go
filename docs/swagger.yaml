@@ -454,14 +454,17 @@ paths:
       consumes:
       - application/json
       description: Endpoint ini digunakan untuk membuat absensi baru untuk Mahasantri
-        berdasarkan data yang dikirimkan oleh mentor.
+        berdasarkan data yang dikirimkan oleh mentor. Dapat menerima satu atau beberapa
+        data absensi dalam satu request.
       parameters:
-      - description: Data Absensi
+      - description: Data Absensi dalam bentuk array
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/dto.AbsensiRequestDTO'
+          items:
+            $ref: '#/definitions/dto.AbsensiRequestDTO'
+          type: array
       produces:
       - application/json
       responses:
