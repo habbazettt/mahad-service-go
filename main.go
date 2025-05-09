@@ -3,9 +3,11 @@ package main
 import (
 	"log"
 	"os"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/habbazettt/mahad-service-go/config"
 	_ "github.com/habbazettt/mahad-service-go/docs"
 	"github.com/habbazettt/mahad-service-go/middleware"
@@ -40,6 +42,20 @@ func main() {
 	}))
 
 	app.Use(middleware.Logger())
+
+	// Rate Limiter Global: 100 request per menit per IP
+	app.Use(limiter.New(limiter.Config{
+		Max:        100,
+		Expiration: 1 * time.Minute,
+		KeyGenerator: func(c *fiber.Ctx) string {
+			return c.IP()
+		},
+		LimitReached: func(c *fiber.Ctx) error {
+			return c.Status(429).JSON(fiber.Map{
+				"error": "Too many requests",
+			})
+		},
+	}))
 
 	app.Get("/", func(c *fiber.Ctx) error {
 		logrus.Info("🚀 Mahad Service API is running!")
