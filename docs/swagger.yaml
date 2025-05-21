@@ -256,55 +256,17 @@ definitions:
       target:
         type: integer
     type: object
-  utils.ErrorExample:
+  utils.ErrorResponseSwagger:
     properties:
-      error: {}
+      error:
+        example: Invalid Mahasantri ID
+        type: string
       message:
-        example: Invalid request body
+        example: Bad Request
         type: string
       status:
-        example: false
-        type: boolean
-    type: object
-  utils.ErrorGetCurrentUserExample:
-    properties:
-      error: {}
-      message:
-        example: Unauthorized
+        example: error
         type: string
-      status:
-        example: false
-        type: boolean
-    type: object
-  utils.ErrorLoginMahasantriExample:
-    properties:
-      error: {}
-      message:
-        example: Invalid NIM or password
-        type: string
-      status:
-        example: false
-        type: boolean
-    type: object
-  utils.ErrorLoginMentorExample:
-    properties:
-      error: {}
-      message:
-        example: Invalid email or password
-        type: string
-      status:
-        example: false
-        type: boolean
-    type: object
-  utils.ErrorMentorExample:
-    properties:
-      error: {}
-      message:
-        example: Invalid request body
-        type: string
-      status:
-        example: false
-        type: boolean
     type: object
   utils.Pagination:
     properties:
@@ -324,55 +286,15 @@ definitions:
       status:
         type: boolean
     type: object
-  utils.SuccessExample:
+  utils.SuccessResponseSwagger:
     properties:
       data: {}
       message:
-        example: Mahasantri registered successfully
+        example: Request successful
         type: string
       status:
-        example: true
-        type: boolean
-    type: object
-  utils.SuccessGetCurrentUserExample:
-    properties:
-      data: {}
-      message:
-        example: User data retrieved
+        example: success
         type: string
-      status:
-        example: true
-        type: boolean
-    type: object
-  utils.SuccessLoginMahasantriExample:
-    properties:
-      data: {}
-      message:
-        example: Login successful
-        type: string
-      status:
-        example: true
-        type: boolean
-    type: object
-  utils.SuccessLoginMentorExample:
-    properties:
-      data: {}
-      message:
-        example: Login successful
-        type: string
-      status:
-        example: true
-        type: boolean
-    type: object
-  utils.SuccessMentorExample:
-    properties:
-      data: {}
-      message:
-        example: Mentor registered successfully
-        type: string
-      status:
-        example: true
-        type: boolean
     type: object
 host: localhost:8080
 info:
@@ -652,19 +574,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/utils.SuccessExample'
+            $ref: '#/definitions/utils.SuccessResponseSwagger'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.ErrorExample'
+            $ref: '#/definitions/utils.ErrorResponseSwagger'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.ErrorExample'
+            $ref: '#/definitions/utils.ErrorResponseSwagger'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/utils.ErrorExample'
+            $ref: '#/definitions/utils.ErrorResponseSwagger'
       summary: Forgot Password
       tags:
       - Auth
@@ -686,15 +608,15 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/utils.SuccessLoginMahasantriExample'
+            $ref: '#/definitions/utils.SuccessResponseSwagger'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.ErrorLoginMahasantriExample'
-        "401":
-          description: Unauthorized
+            $ref: '#/definitions/utils.ErrorResponseSwagger'
+        "409":
+          description: Conflict
           schema:
-            $ref: '#/definitions/utils.ErrorLoginMahasantriExample'
+            $ref: '#/definitions/utils.ErrorResponseSwagger'
       summary: Login Mahasantri
       tags:
       - Auth
@@ -716,15 +638,15 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/utils.SuccessLoginMentorExample'
+            $ref: '#/definitions/utils.SuccessResponseSwagger'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.ErrorLoginMentorExample'
-        "401":
-          description: Unauthorized
+            $ref: '#/definitions/utils.ErrorResponseSwagger'
+        "409":
+          description: Conflict
           schema:
-            $ref: '#/definitions/utils.ErrorLoginMentorExample'
+            $ref: '#/definitions/utils.ErrorResponseSwagger'
       summary: Login Mentor
       tags:
       - Auth
@@ -739,11 +661,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/utils.SuccessExample'
+            $ref: '#/definitions/utils.SuccessResponseSwagger'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.ErrorExample'
+            $ref: '#/definitions/utils.ErrorResponseSwagger'
       summary: Logout
       tags:
       - Auth
@@ -758,15 +680,15 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/utils.SuccessGetCurrentUserExample'
+            $ref: '#/definitions/utils.SuccessResponseSwagger'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/utils.ErrorGetCurrentUserExample'
+            $ref: '#/definitions/utils.ErrorResponseSwagger'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/utils.ErrorGetCurrentUserExample'
+            $ref: '#/definitions/utils.ErrorResponseSwagger'
       security:
       - BearerAuth: []
       summary: Get current user data
@@ -790,15 +712,15 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/utils.SuccessExample'
+            $ref: '#/definitions/utils.SuccessResponseSwagger'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.ErrorExample'
+            $ref: '#/definitions/utils.ErrorResponseSwagger'
         "409":
           description: Conflict
           schema:
-            $ref: '#/definitions/utils.ErrorExample'
+            $ref: '#/definitions/utils.ErrorResponseSwagger'
       summary: Register Mahasantri
       tags:
       - Auth
@@ -820,15 +742,15 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/utils.SuccessMentorExample'
+            $ref: '#/definitions/utils.SuccessResponseSwagger'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/utils.ErrorMentorExample'
+            $ref: '#/definitions/utils.ErrorResponseSwagger'
         "409":
           description: Conflict
           schema:
-            $ref: '#/definitions/utils.ErrorMentorExample'
+            $ref: '#/definitions/utils.ErrorResponseSwagger'
       summary: Register Mentor
       tags:
       - Auth

@@ -26,9 +26,9 @@ type AuthService struct {
 // @Accept json
 // @Produce json
 // @Param body body dto.RegisterMahasantriRequest true "Data pendaftaran Mahasantri"
-// @Success 201 {object} utils.SuccessExample
-// @Failure 400 {object} utils.ErrorExample
-// @Failure 409 {object} utils.ErrorExample
+// @Success 201 {object} utils.SuccessResponseSwagger
+// @Failure 400 {object} utils.ErrorResponseSwagger
+// @Failure 409 {object} utils.ErrorResponseSwagger
 // @Router /api/v1/auth/register/mahasantri [post]
 func (s *AuthService) RegisterMahasantri(c *fiber.Ctx) error {
 	var req dto.RegisterMahasantriRequest
@@ -100,9 +100,9 @@ func (s *AuthService) RegisterMahasantri(c *fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Param body body dto.RegisterMentorRequest true "Data pendaftaran Mentor"
-// @Success 201 {object} utils.SuccessMentorExample
-// @Failure 400 {object} utils.ErrorMentorExample
-// @Failure 409 {object} utils.ErrorMentorExample
+// @Success 201 {object} utils.SuccessResponseSwagger
+// @Failure 400 {object} utils.ErrorResponseSwagger
+// @Failure 409 {object} utils.ErrorResponseSwagger
 // @Router /api/v1/auth/register/mentor [post]
 func (s *AuthService) RegisterMentor(c *fiber.Ctx) error {
 	var req dto.RegisterMentorRequest
@@ -158,9 +158,9 @@ func (s *AuthService) RegisterMentor(c *fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Param body body dto.LoginMentorRequest true "Data login Mentor"
-// @Success 200 {object} utils.SuccessLoginMentorExample
-// @Failure 400 {object} utils.ErrorLoginMentorExample
-// @Failure 401 {object} utils.ErrorLoginMentorExample
+// @Success 200 {object} utils.SuccessResponseSwagger
+// @Failure 400 {object} utils.ErrorResponseSwagger
+// @Failure 409 {object} utils.ErrorResponseSwagger
 // @Router /api/v1/auth/login/mentor [post]
 func (s *AuthService) LoginMentor(c *fiber.Ctx) error {
 	var req dto.LoginMentorRequest
@@ -216,9 +216,9 @@ func (s *AuthService) LoginMentor(c *fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Param body body dto.LoginMahasantriRequest true "Data login Mahasantri"
-// @Success 200 {object} utils.SuccessLoginMahasantriExample
-// @Failure 400 {object} utils.ErrorLoginMahasantriExample
-// @Failure 401 {object} utils.ErrorLoginMahasantriExample
+// @Success 200 {object} utils.SuccessResponseSwagger
+// @Failure 400 {object} utils.ErrorResponseSwagger
+// @Failure 409 {object} utils.ErrorResponseSwagger
 // @Router /api/v1/auth/login/mahasantri [post]
 func (s *AuthService) LoginMahasantri(c *fiber.Ctx) error {
 	var req dto.LoginMahasantriRequest
@@ -271,10 +271,10 @@ func (s *AuthService) LoginMahasantri(c *fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Param body body dto.ForgotPasswordRequest true "Data untuk reset password"
-// @Success 200 {object} utils.SuccessExample
-// @Failure 400 {object} utils.ErrorExample
-// @Failure 404 {object} utils.ErrorExample
-// @Failure 500 {object} utils.ErrorExample
+// @Success 200 {object} utils.SuccessResponseSwagger
+// @Failure 400 {object} utils.ErrorResponseSwagger
+// @Failure 404 {object} utils.ErrorResponseSwagger
+// @Failure 500 {object} utils.ErrorResponseSwagger
 // @Router /api/v1/auth/forgot-password [post]
 func (s *AuthService) ForgotPassword(c *fiber.Ctx) error {
 	var req dto.ForgotPasswordRequest
@@ -327,8 +327,8 @@ func (s *AuthService) ForgotPassword(c *fiber.Ctx) error {
 // @Tags Auth
 // @Accept json
 // @Produce json
-// @Success 200 {object} utils.SuccessExample
-// @Failure 400 {object} utils.ErrorExample
+// @Success 200 {object} utils.SuccessResponseSwagger
+// @Failure 400 {object} utils.ErrorResponseSwagger
 // @Router /api/v1/auth/logout [post]
 func (s *AuthService) Logout(c *fiber.Ctx) error {
 	// Mendapatkan claims dari token JWT yang sudah terverifikasi
@@ -357,9 +357,9 @@ func (s *AuthService) Logout(c *fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {object} utils.SuccessGetCurrentUserExample
-// @Failure 401 {object} utils.ErrorGetCurrentUserExample
-// @Failure 404 {object} utils.ErrorGetCurrentUserExample
+// @Success 200 {object} utils.SuccessResponseSwagger
+// @Failure 401 {object} utils.ErrorResponseSwagger
+// @Failure 404 {object} utils.ErrorResponseSwagger
 // @Router /api/v1/auth/me [get]
 func (s *AuthService) GetCurrentUser(c *fiber.Ctx) error {
 	userClaims, ok := c.Locals("user").(*utils.Claims)

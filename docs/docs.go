@@ -419,25 +419,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/utils.SuccessExample"
+                            "$ref": "#/definitions/utils.SuccessResponseSwagger"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.ErrorExample"
+                            "$ref": "#/definitions/utils.ErrorResponseSwagger"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.ErrorExample"
+                            "$ref": "#/definitions/utils.ErrorResponseSwagger"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/utils.ErrorExample"
+                            "$ref": "#/definitions/utils.ErrorResponseSwagger"
                         }
                     }
                 }
@@ -471,19 +471,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/utils.SuccessLoginMahasantriExample"
+                            "$ref": "#/definitions/utils.SuccessResponseSwagger"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.ErrorLoginMahasantriExample"
+                            "$ref": "#/definitions/utils.ErrorResponseSwagger"
                         }
                     },
-                    "401": {
-                        "description": "Unauthorized",
+                    "409": {
+                        "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/utils.ErrorLoginMahasantriExample"
+                            "$ref": "#/definitions/utils.ErrorResponseSwagger"
                         }
                     }
                 }
@@ -517,19 +517,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/utils.SuccessLoginMentorExample"
+                            "$ref": "#/definitions/utils.SuccessResponseSwagger"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.ErrorLoginMentorExample"
+                            "$ref": "#/definitions/utils.ErrorResponseSwagger"
                         }
                     },
-                    "401": {
-                        "description": "Unauthorized",
+                    "409": {
+                        "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/utils.ErrorLoginMentorExample"
+                            "$ref": "#/definitions/utils.ErrorResponseSwagger"
                         }
                     }
                 }
@@ -552,13 +552,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/utils.SuccessExample"
+                            "$ref": "#/definitions/utils.SuccessResponseSwagger"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.ErrorExample"
+                            "$ref": "#/definitions/utils.ErrorResponseSwagger"
                         }
                     }
                 }
@@ -586,19 +586,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/utils.SuccessGetCurrentUserExample"
+                            "$ref": "#/definitions/utils.SuccessResponseSwagger"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/utils.ErrorGetCurrentUserExample"
+                            "$ref": "#/definitions/utils.ErrorResponseSwagger"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/utils.ErrorGetCurrentUserExample"
+                            "$ref": "#/definitions/utils.ErrorResponseSwagger"
                         }
                     }
                 }
@@ -632,19 +632,19 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/utils.SuccessExample"
+                            "$ref": "#/definitions/utils.SuccessResponseSwagger"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.ErrorExample"
+                            "$ref": "#/definitions/utils.ErrorResponseSwagger"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/utils.ErrorExample"
+                            "$ref": "#/definitions/utils.ErrorResponseSwagger"
                         }
                     }
                 }
@@ -678,19 +678,19 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/utils.SuccessMentorExample"
+                            "$ref": "#/definitions/utils.SuccessResponseSwagger"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/utils.ErrorMentorExample"
+                            "$ref": "#/definitions/utils.ErrorResponseSwagger"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/utils.ErrorMentorExample"
+                            "$ref": "#/definitions/utils.ErrorResponseSwagger"
                         }
                     }
                 }
@@ -2485,73 +2485,20 @@ const docTemplate = `{
                 }
             }
         },
-        "utils.ErrorExample": {
+        "utils.ErrorResponseSwagger": {
             "type": "object",
             "properties": {
-                "error": {},
+                "error": {
+                    "type": "string",
+                    "example": "Invalid Mahasantri ID"
+                },
                 "message": {
                     "type": "string",
-                    "example": "Invalid request body"
+                    "example": "Bad Request"
                 },
                 "status": {
-                    "type": "boolean",
-                    "example": false
-                }
-            }
-        },
-        "utils.ErrorGetCurrentUserExample": {
-            "type": "object",
-            "properties": {
-                "error": {},
-                "message": {
                     "type": "string",
-                    "example": "Unauthorized"
-                },
-                "status": {
-                    "type": "boolean",
-                    "example": false
-                }
-            }
-        },
-        "utils.ErrorLoginMahasantriExample": {
-            "type": "object",
-            "properties": {
-                "error": {},
-                "message": {
-                    "type": "string",
-                    "example": "Invalid NIM or password"
-                },
-                "status": {
-                    "type": "boolean",
-                    "example": false
-                }
-            }
-        },
-        "utils.ErrorLoginMentorExample": {
-            "type": "object",
-            "properties": {
-                "error": {},
-                "message": {
-                    "type": "string",
-                    "example": "Invalid email or password"
-                },
-                "status": {
-                    "type": "boolean",
-                    "example": false
-                }
-            }
-        },
-        "utils.ErrorMentorExample": {
-            "type": "object",
-            "properties": {
-                "error": {},
-                "message": {
-                    "type": "string",
-                    "example": "Invalid request body"
-                },
-                "status": {
-                    "type": "boolean",
-                    "example": false
+                    "example": "error"
                 }
             }
         },
@@ -2582,73 +2529,17 @@ const docTemplate = `{
                 }
             }
         },
-        "utils.SuccessExample": {
+        "utils.SuccessResponseSwagger": {
             "type": "object",
             "properties": {
                 "data": {},
                 "message": {
                     "type": "string",
-                    "example": "Mahasantri registered successfully"
+                    "example": "Request successful"
                 },
                 "status": {
-                    "type": "boolean",
-                    "example": true
-                }
-            }
-        },
-        "utils.SuccessGetCurrentUserExample": {
-            "type": "object",
-            "properties": {
-                "data": {},
-                "message": {
                     "type": "string",
-                    "example": "User data retrieved"
-                },
-                "status": {
-                    "type": "boolean",
-                    "example": true
-                }
-            }
-        },
-        "utils.SuccessLoginMahasantriExample": {
-            "type": "object",
-            "properties": {
-                "data": {},
-                "message": {
-                    "type": "string",
-                    "example": "Login successful"
-                },
-                "status": {
-                    "type": "boolean",
-                    "example": true
-                }
-            }
-        },
-        "utils.SuccessLoginMentorExample": {
-            "type": "object",
-            "properties": {
-                "data": {},
-                "message": {
-                    "type": "string",
-                    "example": "Login successful"
-                },
-                "status": {
-                    "type": "boolean",
-                    "example": true
-                }
-            }
-        },
-        "utils.SuccessMentorExample": {
-            "type": "object",
-            "properties": {
-                "data": {},
-                "message": {
-                    "type": "string",
-                    "example": "Mentor registered successfully"
-                },
-                "status": {
-                    "type": "boolean",
-                    "example": true
+                    "example": "success"
                 }
             }
         }

@@ -28,6 +28,21 @@ services:
       - mahad_network
     volumes:
       - mtadigital_db:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+  test_runner:
+    image: golang:1.24-alpine
+    container_name: test_runner
+    working_dir: /app
+    volumes:
+      - ./:/app
+    environment:
+      TEST_DB_URL: postgresql://postgres:postgres@postgres:5432/mtadigital_db_test?sslmode=disable
+    networks:
+      - mahad_network
+    depends_on:
+      - postgres
+    command: ["go", "test", "./test", "-v"]
 
 networks:
   mahad_network:
