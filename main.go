@@ -18,7 +18,7 @@ import (
 
 // @title Mahad Service API
 // @version 1.0
-// @description API untuk sistem Mahad (Absensi, Hafalan, dll)
+// @description API untuk sistem Mahad
 // @host localhost:8080
 // @BasePath /
 // @schemes http
@@ -43,7 +43,6 @@ func main() {
 
 	app.Use(middleware.Logger())
 
-	// Rate Limiter Global: 100 request per menit per IP
 	app.Use(limiter.New(limiter.Config{
 		Max:        100,
 		Expiration: 1 * time.Minute,

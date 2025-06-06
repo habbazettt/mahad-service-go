@@ -13,6 +13,7 @@ type Mahasantri struct {
 	Gender         string           `gorm:"type:varchar(10);not null" json:"gender"`
 	MentorID       uint             `gorm:"not null" json:"mentor_id"`
 	Mentor         Mentor           `gorm:"foreignKey:MentorID;constraint:OnDelete:CASCADE;" json:"mentor"`
+	JadwalMurojaah []JadwalMurojaah `gorm:"foreignKey:MahasantriID;constraint:OnDelete:CASCADE;" json:"jadwal_murojaah"`
 	Hafalan        []Hafalan        `gorm:"foreignKey:MahasantriID;constraint:OnDelete:CASCADE;" json:"hafalan,omitempty"`
 	Absensi        []Absensi        `gorm:"foreignKey:MahasantriID;constraint:OnDelete:CASCADE;" json:"absensi"`
 	TargetSemester []TargetSemester `gorm:"foreignKey:MahasantriID;constraint:OnDelete:CASCADE;" json:"target_semester"`

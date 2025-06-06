@@ -1,0 +1,1 @@
+CREATE DATABASE mtadigital_db_test;
