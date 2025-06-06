@@ -33,7 +33,7 @@ type MahasantriService struct {
 func (s *MahasantriService) GetAllMahasantri(c *fiber.Ctx) error {
 	page, _ := strconv.Atoi(c.Query("page", "1"))
 	limit, _ := strconv.Atoi(c.Query("limit", "10"))
-	name := c.Query("nama", "") // Ambil parameter pencarian nama
+	name := c.Query("nama", "")
 
 	if page < 1 {
 		page = 1
@@ -43,14 +43,12 @@ func (s *MahasantriService) GetAllMahasantri(c *fiber.Ctx) error {
 	var totalMahasantri int64
 	var mahasantri []models.Mahasantri
 
-	// Hitung total Mahasantri untuk pagination dengan filter nama
 	query := s.DB.Model(&models.Mahasantri{})
 	if name != "" {
-		query = query.Where("nama ILIKE ?", "%"+name+"%") // Filter berdasarkan nama
+		query = query.Where("nama ILIKE ?", "%"+name+"%")
 	}
 	query.Count(&totalMahasantri)
 
-	// Preload Mentor jika ingin menampilkan informasi mentornya juga, dan paginate
 	if err := query.Preload("Mentor").
 		Limit(limit).Offset(offset).
 		Find(&mahasantri).Error; err != nil {
@@ -76,7 +74,6 @@ func (s *MahasantriService) GetAllMahasantri(c *fiber.Ctx) error {
 		"name":  name,
 	}).Info("Paginated mahasantri retrieved successfully")
 
-	// Return response dengan pagination informasi
 	return utils.SuccessResponse(c, fiber.StatusOK, "Mahasantri retrieved successfully", fiber.Map{
 		"pagination": fiber.Map{
 			"current_page": page,

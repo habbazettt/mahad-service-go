@@ -70,6 +70,7 @@ func MigrateDB() {
 		&models.Hafalan{},
 		&models.Absensi{},
 		&models.TargetSemester{},
+		&models.JadwalRekomendasi{},
 	)
 	if err != nil {
 		logrus.WithError(err).Fatal("❌ Gagal melakukan migrasi database!")

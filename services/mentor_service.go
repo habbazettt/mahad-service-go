@@ -129,7 +129,7 @@ func (s *MentorService) GetMentorByID(c *fiber.Ctx) error {
 		Email:           mentor.Email,
 		Gender:          mentor.Gender,
 		MahasantriCount: len(mentor.Mahasantri),
-		Mahasantri:      mahasantriList, // 🔥 Tambahkan ini
+		Mahasantri:      mahasantriList,
 	}
 
 	logrus.WithFields(logrus.Fields{

@@ -15,6 +15,123 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/rekomendasi": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Endpoint untuk mengambil riwayat rekomendasi jadwal yang pernah diberikan kepada pengguna yang sedang login.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Rekomendasi"
+                ],
+                "summary": "Mengambil riwayat rekomendasi dengan pagination",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Nomor halaman",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Jumlah data per halaman",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Daftar riwayat rekomendasi berhasil diambil",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Tidak terautentikasi (token tidak valid)",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Tidak memiliki hak akses (role tidak sesuai)",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Gagal mengambil riwayat rekomendasi",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Endpoint ini menghasilkan rekomendasi jadwal muroja'ah yang dipersonalisasi berdasarkan kondisi pengguna (kesibukan dan kategori hafalan).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Rekomendasi"
+                ],
+                "summary": "Mendapatkan rekomendasi jadwal muroja'ah",
+                "parameters": [
+                    {
+                        "description": "Data kondisi pengguna untuk menghasilkan rekomendasi",
+                        "name": "rekomendasiRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.RecommendationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Rekomendasi berhasil dibuat",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Request body tidak valid",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Tidak terautentikasi (token tidak valid)",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Tidak memiliki hak akses (role tidak sesuai)",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/absensi": {
             "get": {
                 "security": [
@@ -2333,6 +2450,17 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.RecommendationRequest": {
+            "type": "object",
+            "properties": {
+                "kategori_hafalan": {
+                    "type": "string"
+                },
+                "kesibukan": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.RegisterMahasantriRequest": {
             "type": "object",
             "required": [
@@ -2561,7 +2689,7 @@ var SwaggerInfo = &swag.Spec{
 	BasePath:         "/",
 	Schemes:          []string{"http"},
 	Title:            "Mahad Service API",
-	Description:      "API untuk sistem Mahad (Absensi, Hafalan, dll)",
+	Description:      "API untuk sistem Mahad",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

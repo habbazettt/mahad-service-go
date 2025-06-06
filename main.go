@@ -33,6 +33,10 @@ func main() {
 	db := config.ConnectDB()
 	config.MigrateDB()
 
+	if err := config.LoadQlearningModels(); err != nil {
+		log.Fatalf("Gagal memuat model Q-Learning: %v", err)
+	}
+
 	app := fiber.New()
 
 	app.Use(cors.New(cors.Config{
@@ -67,6 +71,7 @@ func main() {
 	routes.SetupHafalanRoutes(app, db)
 	routes.SetupAbsensiRoutes(app, db)
 	routes.SetupTargetSemesterRoutes(app, db)
+	routes.SetupRekomendasiRoutes(app, db)
 
 	port := os.Getenv("PORT")
 	if port == "" {

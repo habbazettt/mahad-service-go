@@ -152,6 +152,13 @@ definitions:
       nama:
         type: string
     type: object
+  dto.RecommendationRequest:
+    properties:
+      kategori_hafalan:
+        type: string
+      kesibukan:
+        type: string
+    type: object
   dto.RegisterMahasantriRequest:
     properties:
       gender:
@@ -299,10 +306,87 @@ definitions:
 host: localhost:8080
 info:
   contact: {}
-  description: API untuk sistem Mahad (Absensi, Hafalan, dll)
+  description: API untuk sistem Mahad
   title: Mahad Service API
   version: "1.0"
 paths:
+  /api/rekomendasi:
+    get:
+      consumes:
+      - application/json
+      description: Endpoint untuk mengambil riwayat rekomendasi jadwal yang pernah
+        diberikan kepada pengguna yang sedang login.
+      parameters:
+      - default: 1
+        description: Nomor halaman
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Jumlah data per halaman
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Daftar riwayat rekomendasi berhasil diambil
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Tidak terautentikasi (token tidak valid)
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Tidak memiliki hak akses (role tidak sesuai)
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Gagal mengambil riwayat rekomendasi
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Mengambil riwayat rekomendasi dengan pagination
+      tags:
+      - Rekomendasi
+    post:
+      consumes:
+      - application/json
+      description: Endpoint ini menghasilkan rekomendasi jadwal muroja'ah yang dipersonalisasi
+        berdasarkan kondisi pengguna (kesibukan dan kategori hafalan).
+      parameters:
+      - description: Data kondisi pengguna untuk menghasilkan rekomendasi
+        in: body
+        name: rekomendasiRequest
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RecommendationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Rekomendasi berhasil dibuat
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: Request body tidak valid
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Tidak terautentikasi (token tidak valid)
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Tidak memiliki hak akses (role tidak sesuai)
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Mendapatkan rekomendasi jadwal muroja'ah
+      tags:
+      - Rekomendasi
   /api/v1/absensi:
     get:
       consumes:
