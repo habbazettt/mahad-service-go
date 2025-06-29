@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/habbazettt/mahad-service-go/models"
-	"github.com/joho/godotenv"
 	"github.com/sirupsen/logrus"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -15,17 +14,13 @@ import (
 var DB *gorm.DB
 
 func ConnectDB() *gorm.DB {
-	err := godotenv.Load()
-	if err != nil {
-		logrus.Warn("⚠️  .env file tidak ditemukan, menggunakan sistem environment")
-	}
-
+	LoadEnv()
 	InitLogger()
 
 	dsn := os.Getenv("LOCAL_DB_URL")
 	if os.Getenv("ENV") == "production" {
 		dsn = os.Getenv("PROD_DB_URL")
-		logrus.Info("🔄 Menggunakan database NeonDB (Production)")
+		logrus.Info("🔄 Menggunakan database Production")
 	} else {
 		logrus.Info("🔄 Menggunakan database PostgreSQL (Local)")
 	}
@@ -71,6 +66,9 @@ func MigrateDB() {
 		&models.Absensi{},
 		&models.TargetSemester{},
 		&models.JadwalRekomendasi{},
+		&models.JadwalPersonal{},
+		&models.LogHarian{},
+		&models.DetailLog{},
 	)
 	if err != nil {
 		logrus.WithError(err).Fatal("❌ Gagal melakukan migrasi database!")

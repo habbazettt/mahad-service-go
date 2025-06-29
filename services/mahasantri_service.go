@@ -99,24 +99,36 @@ func (s *MahasantriService) GetAllMahasantri(c *fiber.Ctx) error {
 func (s *MahasantriService) GetMahasantriByID(c *fiber.Ctx) error {
 	id := c.Params("id")
 
-	// Cek apakah ID valid (harus angka)
 	if _, err := strconv.Atoi(id); err != nil {
 		return utils.ResponseError(c, fiber.StatusBadRequest, "Invalid ID format", nil)
 	}
 
 	var mahasantri models.Mahasantri
-	if err := s.DB.Preload("Mentor").First(&mahasantri, id).Error; err != nil {
+	if err := s.DB.Preload("Mentor").Preload("JadwalPersonal").First(&mahasantri, id).Error; err != nil {
 		logrus.WithError(err).Warn("Mahasantri not found")
 		return utils.ResponseError(c, fiber.StatusNotFound, "Mahasantri not found", nil)
 	}
 
+	var jadwalPersonalDTO *dto.JadwalPersonalResponse
+	if mahasantri.JadwalPersonal != nil {
+		jadwalPersonalDTO = &dto.JadwalPersonalResponse{
+			ID:                mahasantri.JadwalPersonal.ID,
+			TotalHafalan:      mahasantri.JadwalPersonal.TotalHafalan,
+			Jadwal:            mahasantri.JadwalPersonal.Jadwal,
+			Kesibukan:         mahasantri.JadwalPersonal.Kesibukan,
+			EfektifitasJadwal: mahasantri.JadwalPersonal.EfektifitasJadwal,
+		}
+	}
+
 	response := dto.MahasantriResponse{
-		ID:       mahasantri.ID,
-		Nama:     mahasantri.Nama,
-		NIM:      mahasantri.NIM,
-		Jurusan:  mahasantri.Jurusan,
-		Gender:   mahasantri.Gender,
-		MentorID: mahasantri.MentorID,
+		ID:                   mahasantri.ID,
+		Nama:                 mahasantri.Nama,
+		NIM:                  mahasantri.NIM,
+		Jurusan:              mahasantri.Jurusan,
+		Gender:               mahasantri.Gender,
+		MentorID:             mahasantri.MentorID,
+		IsDataMurojaahFilled: mahasantri.IsDataMurojaahFilled,
+		JadwalPersonal:       jadwalPersonalDTO,
 	}
 
 	logrus.WithFields(logrus.Fields{
@@ -146,21 +158,34 @@ func (s *MahasantriService) GetMahasantriByMentorID(c *fiber.Ctx) error {
 		return utils.ResponseError(c, fiber.StatusBadRequest, "Invalid mentor ID format", nil)
 	}
 
-	var mahasantri []models.Mahasantri
-	if err := s.DB.Where("mentor_id = ?", mentorID).Find(&mahasantri).Error; err != nil {
+	var mahasantriList []models.Mahasantri
+	if err := s.DB.Preload("JadwalPersonal").Where("mentor_id = ?", mentorID).Find(&mahasantriList).Error; err != nil {
 		logrus.WithError(err).Error("Failed to fetch mahasantri for mentor")
 		return utils.ResponseError(c, fiber.StatusInternalServerError, "Failed to fetch mahasantri for mentor", err.Error())
 	}
 
-	response := make([]dto.MahasantriResponse, len(mahasantri))
-	for i, m := range mahasantri {
+	response := make([]dto.MahasantriResponse, len(mahasantriList))
+	for i, m := range mahasantriList {
+		var jadwalPersonalDTO *dto.JadwalPersonalResponse
+		if m.JadwalPersonal != nil {
+			jadwalPersonalDTO = &dto.JadwalPersonalResponse{
+				ID:                m.JadwalPersonal.ID,
+				TotalHafalan:      m.JadwalPersonal.TotalHafalan,
+				Jadwal:            m.JadwalPersonal.Jadwal,
+				Kesibukan:         m.JadwalPersonal.Kesibukan,
+				EfektifitasJadwal: m.JadwalPersonal.EfektifitasJadwal,
+			}
+		}
+
 		response[i] = dto.MahasantriResponse{
-			ID:       m.ID,
-			Nama:     m.Nama,
-			NIM:      m.NIM,
-			Jurusan:  m.Jurusan,
-			Gender:   m.Gender,
-			MentorID: m.MentorID,
+			ID:                   m.ID,
+			Nama:                 m.Nama,
+			NIM:                  m.NIM,
+			Jurusan:              m.Jurusan,
+			Gender:               m.Gender,
+			MentorID:             m.MentorID,
+			IsDataMurojaahFilled: m.IsDataMurojaahFilled,
+			JadwalPersonal:       jadwalPersonalDTO,
 		}
 	}
 

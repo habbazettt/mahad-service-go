@@ -3,7 +3,9 @@ package services
 import (
 	"fmt"
 	"math"
+	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/habbazettt/mahad-service-go/config"
@@ -17,6 +19,7 @@ import (
 type RekomendasiService interface {
 	GetRecommendation(c *fiber.Ctx) error
 	GetAllRekomendasi(c *fiber.Ctx) error
+	GetAllKesibukan(c *fiber.Ctx) error
 }
 
 type rekomendasiService struct {
@@ -128,6 +131,8 @@ func (s *rekomendasiService) GetRecommendation(c *fiber.Ctx) error {
 		} else {
 			log.WithField("recordID", rekomendasiRecord.ID).Info("Riwayat rekomendasi berhasil disimpan")
 			response.ID = rekomendasiRecord.ID
+			response.MahasantriID = rekomendasiRecord.MahasantriID
+			response.MentorID = rekomendasiRecord.MentorID
 		}
 	}
 
@@ -135,17 +140,18 @@ func (s *rekomendasiService) GetRecommendation(c *fiber.Ctx) error {
 	return utils.SuccessResponse(c, fiber.StatusOK, "Rekomendasi berhasil dibuat", response)
 }
 
-// GetAllRekomendasi - Mengambil riwayat rekomendasi untuk pengguna dengan pagination
-// @Summary Mengambil riwayat rekomendasi dengan pagination
-// @Description Endpoint untuk mengambil riwayat rekomendasi jadwal yang pernah diberikan kepada pengguna yang sedang login.
+// GetAllRekomendasi - Mengambil riwayat rekomendasi dengan pagination
+// @Summary Mengambil riwayat rekomendasi
+// @Description Endpoint untuk mengambil riwayat rekomendasi jadwal. Mahasantri hanya bisa melihat riwayatnya sendiri. Mentor bisa melihat riwayatnya sendiri atau memfilter untuk satu mahasantri bimbingan tertentu.
 // @Tags Rekomendasi
 // @Accept json
 // @Produce json
 // @Param page query int false "Nomor halaman" default(1)
 // @Param limit query int false "Jumlah data per halaman" default(10)
+// @Param mahasantri_id query int false "Filter berdasarkan ID Mahasantri (hanya untuk Mentor)"
 // @Success 200 {object} utils.Response "Daftar riwayat rekomendasi berhasil diambil"
-// @Failure 401 {object} utils.Response "Tidak terautentikasi (token tidak valid)"
-// @Failure 403 {object} utils.Response "Tidak memiliki hak akses (role tidak sesuai)"
+// @Failure 400 {object} utils.Response "ID Mahasantri tidak valid"
+// @Failure 403 {object} utils.Response "Tidak memiliki hak akses"
 // @Failure 500 {object} utils.Response "Gagal mengambil riwayat rekomendasi"
 // @Security BearerAuth
 // @Router /api/v1/rekomendasi [get]
@@ -161,6 +167,7 @@ func (s *rekomendasiService) GetAllRekomendasi(c *fiber.Ctx) error {
 	})
 	log.Info("Menerima permintaan untuk mengambil riwayat rekomendasi")
 
+	// Logika Pagination
 	page, _ := strconv.Atoi(c.Query("page", "1"))
 	limit, _ := strconv.Atoi(c.Query("limit", "10"))
 	if page < 1 {
@@ -172,22 +179,43 @@ func (s *rekomendasiService) GetAllRekomendasi(c *fiber.Ctx) error {
 	var totalRiwayat int64
 
 	query := s.DB.Model(&models.JadwalRekomendasi{})
+
+	// Logika filter dinamis berdasarkan peran
+	filterMahasantriID, _ := strconv.Atoi(c.Query("mahasantri_id"))
+
 	if userRole == "mahasantri" {
+		// Jika MAHASANTRI, selalu ambil data miliknya sendiri.
 		query = query.Where("mahasantri_id = ?", userID)
 	} else if userRole == "mentor" {
-		query = query.Where("mentor_id = ?", userID)
+		if filterMahasantriID > 0 {
+			// Jika MENTOR dan ada filter mahasantri_id, verifikasi kepemilikan.
+			log = log.WithField("filter_mahasantri_id", filterMahasantriID)
+
+			var mahasantri models.Mahasantri
+			if err := s.DB.Select("mentor_id").First(&mahasantri, filterMahasantriID).Error; err != nil || mahasantri.MentorID != userID {
+				log.Warn("Upaya akses tidak sah oleh mentor ke mahasantri yang bukan bimbingannya")
+				return utils.ResponseError(c, fiber.StatusForbidden, "Anda tidak memiliki hak akses untuk melihat riwayat mahasantri ini", nil)
+			}
+			query = query.Where("mahasantri_id = ?", filterMahasantriID)
+		} else {
+			// Jika MENTOR dan tidak ada filter, tampilkan riwayat miliknya sendiri.
+			query = query.Where("mentor_id = ?", userID)
+		}
 	}
 
+	// Hitung total data untuk pagination
 	if err := query.Count(&totalRiwayat).Error; err != nil {
 		log.WithError(err).Error("Gagal menghitung total riwayat rekomendasi")
 		return utils.ResponseError(c, fiber.StatusInternalServerError, "Gagal menghitung total data", err.Error())
 	}
 
+	// Ambil data dengan urutan, limit, dan offset
 	if err := query.Order("created_at DESC").Limit(limit).Offset(offset).Find(&riwayatRekomendasi).Error; err != nil {
 		log.WithError(err).Error("Gagal mengambil riwayat rekomendasi dari database")
 		return utils.ResponseError(c, fiber.StatusInternalServerError, "Gagal mengambil riwayat rekomendasi", err.Error())
 	}
 
+	// Mapping ke DTO Respons
 	responseDTOs := make([]dto.RecommendationResponse, len(riwayatRekomendasi))
 	for i, rec := range riwayatRekomendasi {
 		var persentaseEfektif *float64
@@ -201,6 +229,8 @@ func (s *rekomendasiService) GetAllRekomendasi(c *fiber.Ctx) error {
 		responseDTOs[i] = dto.RecommendationResponse{
 			ID:                        rec.ID,
 			State:                     rec.State,
+			MahasantriID:              rec.MahasantriID,
+			MentorID:                  rec.MentorID,
 			RekomendasiJadwal:         rec.RekomendasiJadwal,
 			TipeRekomendasi:           rec.TipeRekomendasi,
 			EstimasiQValue:            rec.EstimasiQValue,
@@ -222,4 +252,30 @@ func (s *rekomendasiService) GetAllRekomendasi(c *fiber.Ctx) error {
 		},
 		"riwayat_rekomendasi": responseDTOs,
 	})
+}
+
+func (s *rekomendasiService) GetAllKesibukan(c *fiber.Ctx) error {
+	log := logrus.WithField("handler", "GetAllKesibukan")
+	log.Info("Menerima permintaan untuk mengambil semua opsi kesibukan")
+
+	kesibukanSet := make(map[string]bool)
+
+	for stateString := range config.QTableModel {
+		lastIndex := strings.LastIndex(stateString, "_")
+		if lastIndex != -1 {
+			kesibukan := stateString[:lastIndex]
+			kesibukanSet[kesibukan] = true
+		}
+	}
+
+	uniqueKesibukan := make([]string, 0, len(kesibukanSet))
+	for k := range kesibukanSet {
+		uniqueKesibukan = append(uniqueKesibukan, k)
+	}
+
+	sort.Strings(uniqueKesibukan)
+
+	log.WithField("count", len(uniqueKesibukan)).Info("Berhasil mengambil daftar kesibukan unik")
+
+	return utils.SuccessResponse(c, fiber.StatusOK, "Daftar kesibukan berhasil diambil", uniqueKesibukan)
 }

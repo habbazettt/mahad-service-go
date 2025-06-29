@@ -38,5 +38,6 @@ func SetupRekomendasiRoutes(app *fiber.App, db *gorm.DB) {
 	{
 		rekomendasiRoutes.Post("/", middleware.RoleMiddleware("mentor", "mahasantri"), service.GetRecommendation)
 		rekomendasiRoutes.Get("/", middleware.RoleMiddleware("mentor", "mahasantri"), service.GetAllRekomendasi)
+		rekomendasiRoutes.Get("/kesibukan", middleware.RoleMiddleware("mentor", "mahasantri"), service.GetAllKesibukan)
 	}
 }

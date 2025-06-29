@@ -40,7 +40,7 @@ func (s *MentorService) GetAllMentors(c *fiber.Ctx) error {
 	s.DB.Model(&models.Mentor{}).Count(&totalMentors)
 
 	var mentors []models.Mentor
-	if err := s.DB.Preload("Mahasantri").
+	if err := s.DB.Preload("Mahasantri").Preload("JadwalPersonal").
 		Limit(limit).Offset(offset).
 		Find(&mentors).Error; err != nil {
 		logrus.WithError(err).Error("Failed to fetch mentors")
@@ -49,6 +49,17 @@ func (s *MentorService) GetAllMentors(c *fiber.Ctx) error {
 
 	response := make([]dto.MentorResponse, len(mentors))
 	for i, mentor := range mentors {
+		var jadwalPersonalDTO *dto.JadwalPersonalResponse
+		if mentor.JadwalPersonal != nil {
+			jadwalPersonalDTO = &dto.JadwalPersonalResponse{
+				ID:                mentor.JadwalPersonal.ID,
+				TotalHafalan:      mentor.JadwalPersonal.TotalHafalan,
+				Jadwal:            mentor.JadwalPersonal.Jadwal,
+				Kesibukan:         mentor.JadwalPersonal.Kesibukan,
+				EfektifitasJadwal: mentor.JadwalPersonal.EfektifitasJadwal,
+			}
+		}
+
 		mahasantriList := make([]dto.MahasantriResponse, len(mentor.Mahasantri))
 		for j, m := range mentor.Mahasantri {
 			mahasantriList[j] = dto.MahasantriResponse{
@@ -67,6 +78,7 @@ func (s *MentorService) GetAllMentors(c *fiber.Ctx) error {
 			Email:           mentor.Email,
 			Gender:          mentor.Gender,
 			MahasantriCount: len(mentor.Mahasantri),
+			JadwalPersonal:  jadwalPersonalDTO,
 			Mahasantri:      mahasantriList,
 		}
 	}
@@ -103,13 +115,22 @@ func (s *MentorService) GetMentorByID(c *fiber.Ctx) error {
 	id := c.Params("id")
 	var mentor models.Mentor
 
-	// 🔥 Pastikan kita memuat Mahasantri terkait dengan Preload
-	if err := s.DB.Preload("Mahasantri").First(&mentor, id).Error; err != nil {
+	if err := s.DB.Preload("Mahasantri").Preload("JadwalPersonal").First(&mentor, id).Error; err != nil {
 		logrus.WithError(err).Warn("Mentor not found")
 		return utils.ResponseError(c, fiber.StatusNotFound, "Mentor not found", nil)
 	}
 
-	// Konversi Mahasantri ke DTO
+	var jadwalPersonalDTO *dto.JadwalPersonalResponse
+	if mentor.JadwalPersonal != nil {
+		jadwalPersonalDTO = &dto.JadwalPersonalResponse{
+			ID:                mentor.JadwalPersonal.ID,
+			TotalHafalan:      mentor.JadwalPersonal.TotalHafalan,
+			Jadwal:            mentor.JadwalPersonal.Jadwal,
+			Kesibukan:         mentor.JadwalPersonal.Kesibukan,
+			EfektifitasJadwal: mentor.JadwalPersonal.EfektifitasJadwal,
+		}
+	}
+
 	mahasantriList := make([]dto.MahasantriResponse, len(mentor.Mahasantri))
 	for j, m := range mentor.Mahasantri {
 		mahasantriList[j] = dto.MahasantriResponse{
@@ -122,13 +143,13 @@ func (s *MentorService) GetMentorByID(c *fiber.Ctx) error {
 		}
 	}
 
-	// Mapping ke DTO Response
 	response := dto.MentorResponse{
 		ID:              mentor.ID,
 		Nama:            mentor.Nama,
 		Email:           mentor.Email,
 		Gender:          mentor.Gender,
 		MahasantriCount: len(mentor.Mahasantri),
+		JadwalPersonal:  jadwalPersonalDTO,
 		Mahasantri:      mahasantriList,
 	}
 
@@ -157,21 +178,18 @@ func (s *MentorService) GetMentorByID(c *fiber.Ctx) error {
 func (s *MentorService) UpdateMentor(c *fiber.Ctx) error {
 	id := c.Params("id")
 
-	// Ambil data mentor dari database
 	var mentor models.Mentor
 	if err := s.DB.Preload("Mahasantri").First(&mentor, id).Error; err != nil {
 		logrus.WithError(err).Warn("Mentor not found")
 		return utils.ResponseError(c, fiber.StatusNotFound, "Mentor not found", nil)
 	}
 
-	// Bind request body ke DTO
 	var updateRequest dto.UpdateMentorRequest
 	if err := c.BodyParser(&updateRequest); err != nil {
 		logrus.WithError(err).Error("Failed to parse request body")
 		return utils.ResponseError(c, fiber.StatusBadRequest, "Invalid request body", err.Error())
 	}
 
-	// Validasi email unik jika diupdate
 	if updateRequest.Email != nil {
 		var existingMentor models.Mentor
 		if err := s.DB.Where("email = ? AND id != ?", *updateRequest.Email, id).First(&existingMentor).Error; err == nil {
@@ -179,13 +197,11 @@ func (s *MentorService) UpdateMentor(c *fiber.Ctx) error {
 			return utils.ResponseError(c, fiber.StatusConflict, "Email already in use", nil)
 		}
 
-		// Validasi format email
 		if !utils.IsValidEmail(*updateRequest.Email) {
 			return utils.ResponseError(c, fiber.StatusBadRequest, "Invalid email format", nil)
 		}
 	}
 
-	// Cek apakah ada perubahan data
 	updated := false
 	if updateRequest.Nama != nil && mentor.Nama != *updateRequest.Nama {
 		mentor.Nama = *updateRequest.Nama
@@ -200,12 +216,10 @@ func (s *MentorService) UpdateMentor(c *fiber.Ctx) error {
 		updated = true
 	}
 
-	// Jika tidak ada perubahan, return langsung
 	if !updated {
 		return utils.ResponseError(c, fiber.StatusBadRequest, "No changes detected", nil)
 	}
 
-	// Simpan perubahan ke database
 	if err := s.DB.Save(&mentor).Error; err != nil {
 		logrus.WithError(err).Error("Failed to update mentor")
 		return utils.ResponseError(c, fiber.StatusInternalServerError, "Failed to update mentor", err.Error())
@@ -216,7 +230,6 @@ func (s *MentorService) UpdateMentor(c *fiber.Ctx) error {
 		return utils.ResponseError(c, fiber.StatusInternalServerError, "Failed to fetch updated mentor", err.Error())
 	}
 
-	// Konversi Mahasantri ke DTO
 	mahasantriList := make([]dto.MahasantriResponse, len(mentor.Mahasantri))
 	for j, m := range mentor.Mahasantri {
 		mahasantriList[j] = dto.MahasantriResponse{
@@ -229,7 +242,6 @@ func (s *MentorService) UpdateMentor(c *fiber.Ctx) error {
 		}
 	}
 
-	// Buat Response DTO
 	response := dto.MentorResponse{
 		ID:              mentor.ID,
 		Nama:            mentor.Nama,

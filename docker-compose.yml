@@ -2,50 +2,12 @@ services:
   mtadigital_backend:
     build: .
     container_name: mtadigital_backend
-    restart: always
     ports:
       - "8080:8080"
     env_file:
       - .env
     networks:
       - mahad_network
-    depends_on:
-      - postgres
-
-  postgres:
-    image: postgres:16
-    container_name: mtadigital_db
-    restart: always
-    ports:
-      - "5433:5432"
-    env_file:
-      - .env
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    networks:
-      - mahad_network
-    volumes:
-      - mtadigital_db:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-
-  test_runner:
-    image: golang:1.24-alpine
-    container_name: test_runner
-    working_dir: /app
-    volumes:
-      - ./:/app
-    env_file:
-      .env
-    networks:
-      - mahad_network
-    depends_on:
-      - postgres
-    command: ["go", "test", "./test", "-v"]
 
 networks:
   mahad_network:
-
-volumes:
-  mtadigital_db:

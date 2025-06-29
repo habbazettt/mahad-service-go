@@ -72,6 +72,8 @@ func main() {
 	routes.SetupAbsensiRoutes(app, db)
 	routes.SetupTargetSemesterRoutes(app, db)
 	routes.SetupRekomendasiRoutes(app, db)
+	routes.SetupJadwalPersonalRoutes(app, db)
+	routes.SetupLogMurojaahRoutes(app, db)
 
 	port := os.Getenv("PORT")
 	if port == "" {

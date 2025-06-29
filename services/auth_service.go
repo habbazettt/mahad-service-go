@@ -181,30 +181,28 @@ func (s *AuthService) LoginMentor(c *fiber.Ctx) error {
 		return utils.ResponseError(c, fiber.StatusUnauthorized, "Invalid email or password", nil)
 	}
 
-	// Hitung jumlah Mahasantri yang terkait dengan mentor ini
 	var mahasantriCount int64
 	if err := s.DB.Model(&models.Mahasantri{}).Where("mentor_id = ?", mentor.ID).Count(&mahasantriCount).Error; err != nil {
 		logrus.WithError(err).Error("Failed to count mahasantri")
 		return utils.ResponseError(c, fiber.StatusInternalServerError, "Failed to fetch mahasantri count", err.Error())
 	}
 
-	// Generate token
 	token, err := utils.GenerateToken(mentor.ID, RoleMentor)
 	if err != nil {
 		logrus.WithError(err).Error("Failed to generate token")
 		return utils.ResponseError(c, fiber.StatusInternalServerError, "Failed to generate token", err.Error())
 	}
 
-	// Return response dengan menambahkan field mahasantri_count
 	return utils.SuccessResponse(c, fiber.StatusOK, "Login successful", dto.AuthResponse{
 		Token: token,
 		User: dto.UserMentorResponse{
-			ID:              mentor.ID,
-			Nama:            mentor.Nama,
-			Email:           mentor.Email,
-			Gender:          mentor.Gender,
-			UserType:        RoleMentor,
-			MahasantriCount: int(mahasantriCount), // Tambahkan jumlah Mahasantri
+			ID:                   mentor.ID,
+			Nama:                 mentor.Nama,
+			Email:                mentor.Email,
+			Gender:               mentor.Gender,
+			UserType:             RoleMentor,
+			MahasantriCount:      int(mahasantriCount),
+			IsDataMurojaahFilled: mentor.IsDataMurojaahFilled,
 		},
 	})
 }
@@ -253,13 +251,14 @@ func (s *AuthService) LoginMahasantri(c *fiber.Ctx) error {
 	return utils.SuccessResponse(c, fiber.StatusOK, "Login successful", dto.AuthResponse{
 		Token: token,
 		User: dto.UserMahasantriResponse{
-			ID:       mahasantri.ID,
-			Nama:     mahasantri.Nama,
-			NIM:      mahasantri.NIM,
-			Jurusan:  mahasantri.Jurusan,
-			Gender:   mahasantri.Gender,
-			MentorID: mahasantri.MentorID,
-			UserType: RoleMahasantri,
+			ID:                   mahasantri.ID,
+			Nama:                 mahasantri.Nama,
+			NIM:                  mahasantri.NIM,
+			Jurusan:              mahasantri.Jurusan,
+			Gender:               mahasantri.Gender,
+			MentorID:             mahasantri.MentorID,
+			UserType:             RoleMahasantri,
+			IsDataMurojaahFilled: mahasantri.IsDataMurojaahFilled,
 		},
 	})
 }
@@ -387,18 +386,17 @@ func (s *AuthService) GetCurrentUser(c *fiber.Ctx) error {
 
 		// Format response for Mentor
 		response = dto.UserMentorResponse{
-			ID:              mentor.ID,
-			Nama:            mentor.Nama,
-			Email:           mentor.Email,
-			Gender:          mentor.Gender,
-			UserType:        RoleMentor,
-			MahasantriCount: int(mahasantriCount), // Tambahkan jumlah Mahasantri
-
+			ID:                   mentor.ID,
+			Nama:                 mentor.Nama,
+			Email:                mentor.Email,
+			Gender:               mentor.Gender,
+			UserType:             RoleMentor,
+			MahasantriCount:      int(mahasantriCount),
+			IsDataMurojaahFilled: mentor.IsDataMurojaahFilled,
 		}
 
 	case RoleMahasantri:
 		var mahasantri models.Mahasantri
-		// Get the mahasantri's basic data without preloading other relations
 		if err := s.DB.First(&mahasantri, userClaims.ID).Error; err != nil {
 			logrus.Warn("Mahasantri not found: ", userClaims.ID)
 			return utils.ResponseError(c, fiber.StatusNotFound, "User not found", nil)
@@ -406,13 +404,14 @@ func (s *AuthService) GetCurrentUser(c *fiber.Ctx) error {
 
 		// Format response for Mahasantri
 		response = dto.UserMahasantriResponse{
-			ID:       mahasantri.ID,
-			Nama:     mahasantri.Nama,
-			NIM:      mahasantri.NIM,
-			Jurusan:  mahasantri.Jurusan,
-			Gender:   mahasantri.Gender,
-			MentorID: mahasantri.MentorID,
-			UserType: RoleMahasantri,
+			ID:                   mahasantri.ID,
+			Nama:                 mahasantri.Nama,
+			NIM:                  mahasantri.NIM,
+			Jurusan:              mahasantri.Jurusan,
+			Gender:               mahasantri.Gender,
+			MentorID:             mahasantri.MentorID,
+			UserType:             RoleMahasantri,
+			IsDataMurojaahFilled: mahasantri.IsDataMurojaahFilled,
 		}
 
 	default:

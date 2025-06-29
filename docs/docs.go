@@ -15,123 +15,6 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/api/rekomendasi": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Endpoint untuk mengambil riwayat rekomendasi jadwal yang pernah diberikan kepada pengguna yang sedang login.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Rekomendasi"
-                ],
-                "summary": "Mengambil riwayat rekomendasi dengan pagination",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "default": 1,
-                        "description": "Nomor halaman",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "default": 10,
-                        "description": "Jumlah data per halaman",
-                        "name": "limit",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Daftar riwayat rekomendasi berhasil diambil",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    },
-                    "401": {
-                        "description": "Tidak terautentikasi (token tidak valid)",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    },
-                    "403": {
-                        "description": "Tidak memiliki hak akses (role tidak sesuai)",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    },
-                    "500": {
-                        "description": "Gagal mengambil riwayat rekomendasi",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Endpoint ini menghasilkan rekomendasi jadwal muroja'ah yang dipersonalisasi berdasarkan kondisi pengguna (kesibukan dan kategori hafalan).",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Rekomendasi"
-                ],
-                "summary": "Mendapatkan rekomendasi jadwal muroja'ah",
-                "parameters": [
-                    {
-                        "description": "Data kondisi pengguna untuk menghasilkan rekomendasi",
-                        "name": "rekomendasiRequest",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.RecommendationRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Rekomendasi berhasil dibuat",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    },
-                    "400": {
-                        "description": "Request body tidak valid",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    },
-                    "401": {
-                        "description": "Tidak terautentikasi (token tidak valid)",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    },
-                    "403": {
-                        "description": "Tidak memiliki hak akses (role tidak sesuai)",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/absensi": {
             "get": {
                 "security": [
@@ -1389,6 +1272,80 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/jadwal-personal/all": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Endpoint untuk mengambil daftar semua jadwal personal yang telah dibuat oleh pengguna, dengan pagination.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Jadwal Personal"
+                ],
+                "summary": "Mengambil semua jadwal personal",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Nomor halaman",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Jumlah data per halaman",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter berdasarkan kesibukan",
+                        "name": "kesibukan",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Daftar jadwal personal berhasil diambil",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Permintaan tidak valid",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Tidak terautentikasi",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Jadwal personal tidak ditemukan",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Gagal mengambil data",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/mahasantri": {
             "get": {
                 "security": [
@@ -1893,6 +1850,123 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/rekomendasi": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Endpoint untuk mengambil riwayat rekomendasi jadwal yang pernah diberikan kepada pengguna yang sedang login.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Rekomendasi"
+                ],
+                "summary": "Mengambil riwayat rekomendasi dengan pagination",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Nomor halaman",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Jumlah data per halaman",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Daftar riwayat rekomendasi berhasil diambil",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Tidak terautentikasi (token tidak valid)",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Tidak memiliki hak akses (role tidak sesuai)",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Gagal mengambil riwayat rekomendasi",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Endpoint ini menghasilkan rekomendasi jadwal muroja'ah yang dipersonalisasi berdasarkan kondisi pengguna (kesibukan dan kategori hafalan).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Rekomendasi"
+                ],
+                "summary": "Mendapatkan rekomendasi jadwal muroja'ah",
+                "parameters": [
+                    {
+                        "description": "Data kondisi pengguna untuk menghasilkan rekomendasi",
+                        "name": "rekomendasiRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.RecommendationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Rekomendasi berhasil dibuat",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Request body tidak valid",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Tidak terautentikasi (token tidak valid)",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Tidak memiliki hak akses (role tidak sesuai)",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/target_semester": {
             "get": {
                 "security": [
@@ -2369,6 +2443,32 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.JadwalPersonalResponse": {
+            "type": "object",
+            "properties": {
+                "efektifitas_jadwal": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "jadwal": {
+                    "type": "string"
+                },
+                "kesibukan": {
+                    "type": "string"
+                },
+                "mahasantri_id": {
+                    "type": "integer"
+                },
+                "mentor_id": {
+                    "type": "integer"
+                },
+                "total_hafalan": {
+                    "type": "integer"
+                }
+            }
+        },
         "dto.LoginMahasantriRequest": {
             "type": "object",
             "required": [
@@ -2410,6 +2510,12 @@ const docTemplate = `{
                 "id": {
                     "type": "integer"
                 },
+                "is_data_murojaah_filled": {
+                    "type": "boolean"
+                },
+                "jadwal_personal": {
+                    "$ref": "#/definitions/dto.JadwalPersonalResponse"
+                },
                 "jurusan": {
                     "type": "string"
                 },
@@ -2435,6 +2541,9 @@ const docTemplate = `{
                 },
                 "id": {
                     "type": "integer"
+                },
+                "jadwal_personal": {
+                    "$ref": "#/definitions/dto.JadwalPersonalResponse"
                 },
                 "mahasantri": {
                     "type": "array",

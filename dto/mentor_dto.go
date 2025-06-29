@@ -1,12 +1,13 @@
 package dto
 
 type MentorResponse struct {
-	ID              uint                 `json:"id"`
-	Nama            string               `json:"nama"`
-	Email           string               `json:"email"`
-	Gender          string               `json:"gender"`
-	MahasantriCount int                  `json:"mahasantri_count"`
-	Mahasantri      []MahasantriResponse `json:"mahasantri"`
+	ID              uint                    `json:"id"`
+	Nama            string                  `json:"nama"`
+	Email           string                  `json:"email"`
+	Gender          string                  `json:"gender"`
+	MahasantriCount int                     `json:"mahasantri_count"`
+	Mahasantri      []MahasantriResponse    `json:"mahasantri,omitempty"`
+	JadwalPersonal  *JadwalPersonalResponse `json:"jadwal_personal,omitempty"`
 }
 
 type UpdateMentorRequest struct {

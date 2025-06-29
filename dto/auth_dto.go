@@ -38,30 +38,33 @@ type AuthResponse struct {
 }
 
 type UserMahasantriResponse struct {
-	ID       uint   `json:"id"`
-	Nama     string `json:"nama"`
-	NIM      string `json:"nim"`
-	Jurusan  string `json:"jurusan"`
-	Gender   string `json:"gender"`
-	MentorID uint   `json:"mentor_id"` // ID mentor yang membimbing
-	UserType string `json:"user_type"` // "mahasantri"
+	ID                   uint   `json:"id"`
+	Nama                 string `json:"nama"`
+	NIM                  string `json:"nim"`
+	Jurusan              string `json:"jurusan"`
+	Gender               string `json:"gender"`
+	MentorID             uint   `json:"mentor_id"`
+	UserType             string `json:"user_type"`
+	IsDataMurojaahFilled bool   `json:"is_data_murojaah_filled"`
 }
 
 type UserMentorResponse struct {
-	ID              uint   `json:"id"`
-	Nama            string `json:"nama"`
-	Email           string `json:"email"`
-	Gender          string `json:"gender"`
-	MahasantriCount int    `json:"mahasantri_count"` // Jumlah mahasantri yang dibimbing
-	UserType        string `json:"user_type"`        // "mentor"
+	ID                   uint   `json:"id"`
+	Nama                 string `json:"nama"`
+	Email                string `json:"email"`
+	Gender               string `json:"gender"`
+	MahasantriCount      int    `json:"mahasantri_count"`
+	UserType             string `json:"user_type"`
+	IsDataMurojaahFilled bool   `json:"is_data_murojaah_filled"`
 }
 
 type UserMentorWithMahasantriResponse struct {
-	ID              uint                     `json:"id"`
-	Nama            string                   `json:"nama"`
-	Email           string                   `json:"email"`
-	Gender          string                   `json:"gender"`
-	MahasantriCount int                      `json:"mahasantri_count"`
-	Mahasantri      []UserMahasantriResponse `json:"mahasantri"` // List Mahasantri yang dibimbing
-	UserType        string                   `json:"user_type"`  // "mentor"
+	ID                   uint                     `json:"id"`
+	Nama                 string                   `json:"nama"`
+	Email                string                   `json:"email"`
+	Gender               string                   `json:"gender"`
+	MahasantriCount      int                      `json:"mahasantri_count"`
+	Mahasantri           []UserMahasantriResponse `json:"mahasantri"`
+	UserType             string                   `json:"user_type"`
+	IsDataMurojaahFilled bool                     `json:"is_data_murojaah_filled"`
 }

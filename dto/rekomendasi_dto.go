@@ -8,6 +8,8 @@ type RecommendationRequest struct {
 type RecommendationResponse struct {
 	ID                        uint     `json:"id"`
 	State                     string   `json:"state"`
+	MahasantriID              *uint    `json:"mahasantri_id,omitempty"`
+	MentorID                  *uint    `json:"mentor_id,omitempty"`
 	RekomendasiJadwal         string   `json:"rekomendasi_jadwal"`
 	TipeRekomendasi           string   `json:"tipe_rekomendasi"`
 	EstimasiQValue            *float64 `json:"estimasi_q_value,omitempty"`
