@@ -23,17 +23,14 @@ type MahasantriSeedData struct {
 }
 
 func main() {
-	// Memuat variabel environment dari file .env di root proyek.
 	err := godotenv.Load(".env")
 	if err != nil {
 		log.Fatalf("Error memuat file .env: %v. Pastikan Anda menjalankan perintah dari folder root 'absensi-service'.", err)
 	}
 
-	// 1. Hubungkan ke database.
 	db := config.ConnectDB()
 	fmt.Println("✅ Berhasil terhubung ke database di VM GCP untuk seeding...")
 
-	// 2. Panggil fungsi seeding Mahasantri.
 	err = seedMahasantriFromJSON(db, "./cmd/seed/mahasantri_data.json")
 	if err != nil {
 		log.Fatalf("❌ Gagal melakukan seeding data Mahasantri dari JSON: %v", err)

@@ -12,8 +12,9 @@ type MahasantriResponse struct {
 }
 
 type UpdateMahasantriRequest struct {
-	Nama    *string `json:"nama,omitempty"`
-	NIM     *string `json:"nim,omitempty"`
-	Jurusan *string `json:"jurusan,omitempty"`
-	Gender  *string `json:"gender,omitempty"`
+	Nama     *string `json:"nama,omitempty"`
+	NIM      *string `json:"nim,omitempty"`
+	Jurusan  *string `json:"jurusan,omitempty"`
+	Gender   *string `json:"gender,omitempty"`
+	MentorID *uint   `json:"mentor_id,omitempty"`
 }

@@ -183,10 +183,11 @@ func (s *rekomendasiService) GetAllRekomendasi(c *fiber.Ctx) error {
 	// Logika filter dinamis berdasarkan peran
 	filterMahasantriID, _ := strconv.Atoi(c.Query("mahasantri_id"))
 
-	if userRole == "mahasantri" {
+	switch userRole {
+	case "mahasantri":
 		// Jika MAHASANTRI, selalu ambil data miliknya sendiri.
 		query = query.Where("mahasantri_id = ?", userID)
-	} else if userRole == "mentor" {
+	case "mentor":
 		if filterMahasantriID > 0 {
 			// Jika MENTOR dan ada filter mahasantri_id, verifikasi kepemilikan.
 			log = log.WithField("filter_mahasantri_id", filterMahasantriID)

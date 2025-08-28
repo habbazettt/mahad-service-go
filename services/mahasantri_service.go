@@ -243,6 +243,10 @@ func (s *MahasantriService) UpdateMahasantri(c *fiber.Ctx) error {
 		mahasantri.Gender = *updateRequest.Gender
 		updated = true
 	}
+	if updateRequest.MentorID != nil && *updateRequest.MentorID != mahasantri.MentorID {
+		mahasantri.MentorID = *updateRequest.MentorID
+		updated = true
+	}
 
 	// Jika tidak ada perubahan, langsung return
 	if !updated {

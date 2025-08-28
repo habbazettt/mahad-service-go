@@ -139,10 +139,11 @@ func (s *jadwalPersonalService) CreateJadwalPersonal(c *fiber.Ctx) error {
 		}
 
 		var foreignKeyColumn string
-		if userRole == "mahasantri" {
+		switch userRole {
+		case "mahasantri":
 			foreignKeyColumn = "mahasantri_id"
 			jadwalPersonal.MahasantriID = &userID
-		} else if userRole == "mentor" {
+		case "mentor":
 			foreignKeyColumn = "mentor_id"
 			jadwalPersonal.MentorID = &userID
 		}
@@ -154,11 +155,12 @@ func (s *jadwalPersonalService) CreateJadwalPersonal(c *fiber.Ctx) error {
 			return err
 		}
 
-		if userRole == "mahasantri" {
+		switch userRole {
+		case "mahasantri":
 			if err := tx.Model(&models.Mahasantri{}).Where("id = ?", userID).Update("is_data_murojaah_filled", true).Error; err != nil {
 				return err
 			}
-		} else if userRole == "mentor" {
+		case "mentor":
 			if err := tx.Model(&models.Mentor{}).Where("id = ?", userID).Update("is_data_murojaah_filled", true).Error; err != nil {
 				return err
 			}
@@ -205,9 +207,10 @@ func (s *jadwalPersonalService) GetJadwalPersonal(c *fiber.Ctx) error {
 	var jadwalPersonal models.JadwalPersonal
 	var err error
 
-	if userRole == "mahasantri" {
+	switch userRole {
+	case "mahasantri":
 		err = s.DB.Where("mahasantri_id = ?", userID).First(&jadwalPersonal).Error
-	} else if userRole == "mentor" {
+	case "mentor":
 		err = s.DB.Where("mentor_id = ?", userID).First(&jadwalPersonal).Error
 	}
 
@@ -249,9 +252,10 @@ func (s *jadwalPersonalService) UpdateJadwalPersonal(c *fiber.Ctx) error {
 
 	var jadwalPersonal models.JadwalPersonal
 	query := s.DB
-	if userRole == "mahasantri" {
+	switch userRole {
+	case "mahasantri":
 		query = query.Where("mahasantri_id = ?", userID)
-	} else if userRole == "mentor" {
+	case "mentor":
 		query = query.Where("mentor_id = ?", userID)
 	}
 

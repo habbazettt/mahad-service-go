@@ -40,7 +40,7 @@ func main() {
 	app := fiber.New()
 
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "https://mtadigital.netlify.app",
+		AllowOrigins: "https://mtadigital.netlify.app,http://localhost:5173",
 		AllowMethods: "GET,POST,PUT,DELETE",
 		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
 	}))

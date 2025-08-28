@@ -84,9 +84,10 @@ func (s *logMurojaahService) GetOrCreateLogHarian(c *fiber.Ctx) error {
 	var mahasantriID uint
 	var err error
 
-	if userRole == "mahasantri" {
+	switch userRole {
+	case "mahasantri":
 		mahasantriID = userID
-	} else if userRole == "mentor" {
+	case "mentor":
 		mahasantriID_int, err_parse := strconv.Atoi(c.Params("mahasantriID"))
 		if err_parse != nil {
 			return utils.ResponseError(c, fiber.StatusBadRequest, "ID Mahasantri tidak valid pada parameter URL", nil)
