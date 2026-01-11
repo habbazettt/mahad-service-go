@@ -14,12 +14,16 @@ import (
 )
 
 type HafalanService struct {
-	DB *gorm.DB
+	DB           *gorm.DB
+	NotifService *NotificationService
 }
 
 // NewHafalanService membuat instance service hafalan
-func NewHafalanService(db *gorm.DB) *HafalanService {
-	return &HafalanService{DB: db}
+func NewHafalanService(db *gorm.DB, notifService *NotificationService) *HafalanService {
+	return &HafalanService{
+		DB:           db,
+		NotifService: notifService,
+	}
 }
 
 // CreateHafalan - Menambahkan hafalan baru
@@ -78,6 +82,14 @@ func (s *HafalanService) CreateHafalan(c *fiber.Ctx) error {
 		"juz":        req.Juz,
 		"halaman":    req.Halaman,
 	}).Info("Hafalan created successfully")
+
+	// Trigger Notification
+	s.NotifService.CreateNotificationForMahasantri(
+		req.MahasantriID,
+		models.NotifHafalanTercatat,
+		"Hafalan Tercatat",
+		fmt.Sprintf("Hafalan %s Juz %d Halaman %s telah berhasil dicatat.", req.Kategori, req.Juz, req.Halaman),
+	)
 
 	return utils.SuccessResponse(c, fiber.StatusCreated, "Hafalan created successfully", hafalan)
 }

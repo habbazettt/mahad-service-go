@@ -10,30 +10,74 @@ import (
 	"github.com/habbazettt/mahad-service-go/dto"
 	"github.com/habbazettt/mahad-service-go/models"
 	"github.com/habbazettt/mahad-service-go/utils"
-	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
 type LogMurojaahService interface {
 	GetOrCreateLogHarian(c *fiber.Ctx) error
 	AddDetailToLog(c *fiber.Ctx) error
-	UpdateDetailLog(c *fiber.Ctx) error
+	AddProgressToDetail(c *fiber.Ctx) error
 	DeleteDetailLog(c *fiber.Ctx) error
+	DeleteProgressLog(c *fiber.Ctx) error
 	GetRecapMingguan(c *fiber.Ctx) error
 	GetAllLogsForMentorDashboard(c *fiber.Ctx) error
 	GetStatistikMurojaah(c *fiber.Ctx) error
 	GetRekapBimbinganMingguan(c *fiber.Ctx) error
 	ApplyAIRekomendasi(c *fiber.Ctx) error
+	GetWaktuMurojaahOptions(c *fiber.Ctx) error
 }
 
 type logMurojaahService struct {
-	DB *gorm.DB
+	DB           *gorm.DB
+	NotifService *NotificationService
 }
 
-func NewLogMurojaahService(db *gorm.DB) LogMurojaahService {
-	return &logMurojaahService{DB: db}
+func NewLogMurojaahService(db *gorm.DB, notifService *NotificationService) LogMurojaahService {
+	return &logMurojaahService{
+		DB:           db,
+		NotifService: notifService,
+	}
 }
 
+// Helper: Build Detail Log Response
+func buildDetailLogResponse(detail models.DetailLog) dto.DetailLogResponse {
+	waktuLabel := models.GetWaktuMurojaahLabel(detail.WaktuMurojaah)
+
+	var percentage float64
+	if detail.TotalTargetHalaman > 0 {
+		percentage = (float64(detail.TotalSelesaiHalaman) / float64(detail.TotalTargetHalaman)) * 100
+	}
+
+	progressResponses := make([]dto.ProgressLogResponse, len(detail.ProgressLogs))
+	for j, pl := range detail.ProgressLogs {
+		progressResponses[j] = dto.ProgressLogResponse{
+			ID:            pl.ID,
+			JumlahHalaman: pl.JumlahHalaman,
+			Catatan:       pl.Catatan,
+			CreatedAt:     pl.CreatedAt,
+		}
+	}
+
+	return dto.DetailLogResponse{
+		ID:                  detail.ID,
+		WaktuMurojaah:       detail.WaktuMurojaah,
+		WaktuMurojaahLabel:  waktuLabel,
+		TargetStartJuz:      detail.TargetStartJuz,
+		TargetStartHalaman:  detail.TargetStartHalaman,
+		TargetEndJuz:        detail.TargetEndJuz,
+		TargetEndHalaman:    detail.TargetEndHalaman,
+		TotalTargetHalaman:  detail.TotalTargetHalaman,
+		TotalSelesaiHalaman: detail.TotalSelesaiHalaman,
+		PersentaseSelesai:   percentage,
+		Status:              string(detail.Status),
+		Catatan:             detail.Catatan,
+		CreatedAt:           detail.CreatedAt,
+		UpdatedAt:           detail.UpdatedAt,
+		ProgressLogs:        progressResponses,
+	}
+}
+
+// calculateTotalPages menghitung total halaman dari range juz dan halaman
 func calculateTotalPages(startJuz, startHalaman, endJuz, endHalaman int) (int, error) {
 	if startJuz > endJuz || (startJuz == endJuz && startHalaman > endHalaman) {
 		return 0, errors.New("target/progres akhir tidak boleh lebih kecil dari awal")
@@ -46,16 +90,48 @@ func calculateTotalPages(startJuz, startHalaman, endJuz, endHalaman int) (int, e
 	}
 
 	halamanDiJuzAwal := (halamanPerJuz - startHalaman) + 1
-
 	halamanDiJuzAkhir := endHalaman
-
 	juzPerantara := (endJuz - startJuz) - 1
 	halamanDiJuzPerantara := juzPerantara * halamanPerJuz
 
 	return halamanDiJuzAwal + halamanDiJuzAkhir + halamanDiJuzPerantara, nil
 }
 
-func (s *logMurojaahService) recalculateTotals(tx *gorm.DB, logHarianID uint) error {
+// recalculateDetailLogTotals menghitung ulang total selesai dari ProgressLogs
+func (s *logMurojaahService) recalculateDetailLogTotals(tx *gorm.DB, detailLogID uint) (models.StatusDetailLog, error) {
+	var totalSelesai int
+	err := tx.Model(&models.ProgressLog{}).
+		Select("COALESCE(SUM(jumlah_halaman), 0)").
+		Where("detail_log_id = ?", detailLogID).
+		Scan(&totalSelesai).Error
+	if err != nil {
+		return "", err
+	}
+
+	var detail models.DetailLog
+	if err := tx.First(&detail, detailLogID).Error; err != nil {
+		return "", err
+	}
+
+	var newStatus models.StatusDetailLog
+	if totalSelesai >= detail.TotalTargetHalaman {
+		newStatus = models.StatusSesiSelesai
+	} else if totalSelesai > 0 {
+		newStatus = models.StatusSesiBerjalan
+	} else {
+		newStatus = models.StatusSesiBelumSelesai
+	}
+
+	err = tx.Model(&models.DetailLog{}).Where("id = ?", detailLogID).Updates(map[string]interface{}{
+		"total_selesai_halaman": totalSelesai,
+		"status":                newStatus,
+	}).Error
+
+	return newStatus, err
+}
+
+// recalculateLogHarianTotals menghitung ulang total dari DetailLogs
+func (s *logMurojaahService) recalculateLogHarianTotals(tx *gorm.DB, logHarianID uint) error {
 	var totals struct {
 		TotalTarget  int
 		TotalSelesai int
@@ -65,7 +141,6 @@ func (s *logMurojaahService) recalculateTotals(tx *gorm.DB, logHarianID uint) er
 		Select("COALESCE(SUM(total_target_halaman), 0) as total_target, COALESCE(SUM(total_selesai_halaman), 0) as total_selesai").
 		Where("log_harian_id = ?", logHarianID).
 		Scan(&totals).Error
-
 	if err != nil {
 		return err
 	}
@@ -76,301 +151,313 @@ func (s *logMurojaahService) recalculateTotals(tx *gorm.DB, logHarianID uint) er
 	}).Error
 }
 
+// GetWaktuMurojaahOptions mengembalikan semua opsi waktu murojaah
+func (s *logMurojaahService) GetWaktuMurojaahOptions(c *fiber.Ctx) error {
+	options := make([]dto.WaktuMurojaahOptionResponse, len(models.WaktuMurojaahOptions))
+	for i, opt := range models.WaktuMurojaahOptions {
+		options[i] = dto.WaktuMurojaahOptionResponse{
+			Kode:      opt.Kode,
+			Label:     opt.Label,
+			JamMulai:  opt.JamMulai,
+			JamAkhir:  opt.JamAkhir,
+			FullLabel: opt.FullLabel,
+		}
+	}
+	return utils.SuccessResponse(c, fiber.StatusOK, "Opsi waktu murojaah berhasil diambil", options)
+}
+
+// GetOrCreateLogHarian
 func (s *logMurojaahService) GetOrCreateLogHarian(c *fiber.Ctx) error {
 	claims := c.Locals("user").(*utils.Claims)
-	userRole := claims.Role
 	userID := claims.ID
 
-	var mahasantriID uint
-	var err error
-
-	switch userRole {
-	case "mahasantri":
-		mahasantriID = userID
-	case "mentor":
-		mahasantriID_int, err_parse := strconv.Atoi(c.Params("mahasantriID"))
-		if err_parse != nil {
-			return utils.ResponseError(c, fiber.StatusBadRequest, "ID Mahasantri tidak valid pada parameter URL", nil)
-		}
-		mahasantriID = uint(mahasantriID_int)
-
-		var mahasantri models.Mahasantri
-		if err := s.DB.Select("mentor_id").First(&mahasantri, mahasantriID).Error; err != nil || mahasantri.MentorID != userID {
-			return utils.ResponseError(c, fiber.StatusForbidden, "Anda tidak memiliki hak akses untuk melihat log mahasantri ini", nil)
+	// Check if date query param exists
+	dateParam := c.Query("date")
+	targetDate := time.Now()
+	if dateParam != "" {
+		parsedDate, err := time.Parse("2006-01-02", dateParam)
+		if err == nil {
+			targetDate = parsedDate
 		}
 	}
 
-	log := logrus.WithFields(logrus.Fields{"handler": "GetOrCreateLogHarian", "mahasantriID": mahasantriID})
+	dateString := targetDate.Format("2006-01-02")
 
-	tanggalStr := c.Query("tanggal")
-	var tanggal time.Time
-	if tanggalStr == "" {
-		tanggal = time.Now()
-	} else {
-		tanggal, err = time.Parse("2006-01-02", tanggalStr)
-		if err != nil {
-			log.WithError(err).Warn("Format tanggal tidak valid")
-			return utils.ResponseError(c, fiber.StatusBadRequest, "Format tanggal tidak valid, gunakan YYYY-MM-DD", nil)
+	var log models.LogHarian
+	err := s.DB.Preload("DetailLogs.ProgressLogs", func(db *gorm.DB) *gorm.DB {
+		return db.Order("created_at DESC")
+	}).Preload("DetailLogs", func(db *gorm.DB) *gorm.DB {
+		return db.Order("created_at ASC")
+	}).Where("mahasantri_id = ? AND tanggal = ?", userID, dateString).First(&log).Error
+
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		log = models.LogHarian{
+			MahasantriID: userID,
+			Tanggal:      targetDate,
 		}
-	}
-	tanggal = time.Date(tanggal.Year(), tanggal.Month(), tanggal.Day(), 0, 0, 0, 0, time.UTC)
-
-	var logHarian models.LogHarian
-	err = s.DB.Preload("DetailLogs").
-		Where(models.LogHarian{MahasantriID: mahasantriID, Tanggal: tanggal}).
-		FirstOrCreate(&logHarian).Error
-
-	if err != nil {
-		log.WithError(err).Error("Gagal mengambil atau membuat log harian")
-		return utils.ResponseError(c, fiber.StatusInternalServerError, "Gagal memproses data log harian", err.Error())
-	}
-
-	detailDTOs := make([]dto.DetailLogResponse, len(logHarian.DetailLogs))
-	for i, detail := range logHarian.DetailLogs {
-		detailDTOs[i] = dto.DetailLogResponse{
-			ID:                  detail.ID,
-			WaktuMurojaah:       detail.WaktuMurojaah,
-			TargetStartJuz:      detail.TargetStartJuz,
-			TargetStartHalaman:  detail.TargetStartHalaman,
-			TargetEndJuz:        detail.TargetEndJuz,
-			TargetEndHalaman:    detail.TargetEndHalaman,
-			TotalTargetHalaman:  detail.TotalTargetHalaman,
-			SelesaiEndJuz:       detail.SelesaiEndJuz,
-			SelesaiEndHalaman:   detail.SelesaiEndHalaman,
-			TotalSelesaiHalaman: detail.TotalSelesaiHalaman,
-			Status:              string(detail.Status),
-			Catatan:             detail.Catatan,
-			UpdatedAt:           detail.UpdatedAt,
+		if err := s.DB.Create(&log).Error; err != nil {
+			return utils.ResponseError(c, fiber.StatusInternalServerError, "Gagal membuat log harian", err.Error())
 		}
+		s.DB.Preload("DetailLogs").First(&log, log.ID)
+	} else if err != nil {
+		return utils.ResponseError(c, fiber.StatusInternalServerError, "Gagal mengambil log harian", err.Error())
 	}
 
 	response := dto.LogHarianResponse{
-		ID:                  logHarian.ID,
-		Tanggal:             logHarian.Tanggal.Format("02-01-2006"),
-		TotalTargetHalaman:  logHarian.TotalTargetHalaman,
-		TotalSelesaiHalaman: logHarian.TotalSelesaiHalaman,
-		DetailLogs:          detailDTOs,
+		ID:                  log.ID,
+		Tanggal:             log.Tanggal.Format("2006-01-02"),
+		TotalTargetHalaman:  log.TotalTargetHalaman,
+		TotalSelesaiHalaman: log.TotalSelesaiHalaman,
+		DetailLogs:          make([]dto.DetailLogResponse, len(log.DetailLogs)),
 	}
-	return utils.SuccessResponse(c, fiber.StatusOK, "Log harian berhasil diproses", response)
+
+	var persentase float64
+	if log.TotalTargetHalaman > 0 {
+		persentase = (float64(log.TotalSelesaiHalaman) / float64(log.TotalTargetHalaman)) * 100
+	}
+	response.PersentaseSelesai = persentase
+
+	for i, detail := range log.DetailLogs {
+		response.DetailLogs[i] = buildDetailLogResponse(detail)
+	}
+
+	return utils.SuccessResponse(c, fiber.StatusOK, "Log harian berhasil diambil", response)
 }
 
+// AddDetailToLog
 func (s *logMurojaahService) AddDetailToLog(c *fiber.Ctx) error {
 	claims := c.Locals("user").(*utils.Claims)
-	mahasantriID := claims.ID
+	userID := claims.ID
 
-	log := logrus.WithFields(logrus.Fields{"handler": "AddDetailToLog", "mahasantriID": mahasantriID})
+	idParam := c.Params("id")
+	logID, err := strconv.Atoi(idParam)
+	if err != nil {
+		return utils.ResponseError(c, fiber.StatusBadRequest, "ID log tidak valid", err.Error())
+	}
 
 	var req dto.AddDetailLogRequest
 	if err := c.BodyParser(&req); err != nil {
-		log.WithError(err).Error("Gagal parsing body request")
 		return utils.ResponseError(c, fiber.StatusBadRequest, "Request body tidak valid", err.Error())
 	}
 
-	var newDetail models.DetailLog
-
-	err := s.DB.Transaction(func(tx *gorm.DB) error {
-		today := time.Now()
-		today = time.Date(today.Year(), today.Month(), today.Day(), 0, 0, 0, 0, time.UTC)
-
-		var logHarian models.LogHarian
-		if err := tx.Where(models.LogHarian{MahasantriID: mahasantriID, Tanggal: today}).FirstOrCreate(&logHarian).Error; err != nil {
-			return err
-		}
-
-		totalTarget, err := calculateTotalPages(req.TargetStartJuz, req.TargetStartHalaman, req.TargetEndJuz, req.TargetEndHalaman)
-		if err != nil {
-			return err
-		}
-		if totalTarget <= 0 {
-			return errors.New("target murojaah harus lebih dari 0 halaman")
-		}
-
-		newDetail = models.DetailLog{
-			LogHarianID:        logHarian.ID,
-			WaktuMurojaah:      req.WaktuMurojaah,
-			TargetStartJuz:     req.TargetStartJuz,
-			TargetStartHalaman: req.TargetStartHalaman,
-			TargetEndJuz:       req.TargetEndJuz,
-			TargetEndHalaman:   req.TargetEndHalaman,
-			TotalTargetHalaman: totalTarget,
-			Status:             models.StatusSesiBelumSelesai,
-			Catatan:            req.Catatan,
-		}
-		if err := tx.Create(&newDetail).Error; err != nil {
-			return err
-		}
-
-		return s.recalculateTotals(tx, logHarian.ID)
-	})
-
+	totalHalaman, err := calculateTotalPages(req.TargetStartJuz, req.TargetStartHalaman, req.TargetEndJuz, req.TargetEndHalaman)
 	if err != nil {
-		log.WithError(err).Error("Gagal menambahkan detail log dalam transaksi")
-		if err.Error() == "target murojaah harus lebih dari 0 halaman" || err.Error() == "target/progres akhir tidak boleh lebih kecil dari awal" {
-			return utils.ResponseError(c, fiber.StatusBadRequest, err.Error(), nil)
-		}
-		return utils.ResponseError(c, fiber.StatusInternalServerError, "Gagal menyimpan sesi murojaah", err.Error())
+		return utils.ResponseError(c, fiber.StatusBadRequest, err.Error(), nil)
 	}
 
-	response := dto.DetailLogResponse{
-		ID:                  newDetail.ID,
-		WaktuMurojaah:       newDetail.WaktuMurojaah,
-		TargetStartJuz:      newDetail.TargetStartJuz,
-		TargetStartHalaman:  newDetail.TargetStartHalaman,
-		TargetEndJuz:        newDetail.TargetEndJuz,
-		TargetEndHalaman:    newDetail.TargetEndHalaman,
-		TotalTargetHalaman:  newDetail.TotalTargetHalaman,
-		SelesaiEndJuz:       newDetail.SelesaiEndJuz,
-		SelesaiEndHalaman:   newDetail.SelesaiEndHalaman,
-		TotalSelesaiHalaman: newDetail.TotalSelesaiHalaman,
-		Status:              string(newDetail.Status),
-		Catatan:             newDetail.Catatan,
-		UpdatedAt:           newDetail.UpdatedAt,
+	tx := s.DB.Begin()
+
+	var log models.LogHarian
+	if err := tx.Where("id = ? AND mahasantri_id = ?", logID, userID).First(&log).Error; err != nil {
+		tx.Rollback()
+		return utils.ResponseError(c, fiber.StatusNotFound, "Log harian tidak ditemukan", nil)
 	}
 
-	log.Info("Berhasil menambahkan detail sesi murojaah baru")
-	return utils.SuccessResponse(c, fiber.StatusCreated, "Sesi murojaah berhasil ditambahkan", response)
+	detail := models.DetailLog{
+		LogHarianID:         uint(logID),
+		WaktuMurojaah:       req.WaktuMurojaah,
+		TargetStartJuz:      req.TargetStartJuz,
+		TargetStartHalaman:  req.TargetStartHalaman,
+		TargetEndJuz:        req.TargetEndJuz,
+		TargetEndHalaman:    req.TargetEndHalaman,
+		TotalTargetHalaman:  totalHalaman,
+		TotalSelesaiHalaman: 0,
+		Status:              models.StatusSesiBelumSelesai,
+		Catatan:             req.Catatan,
+	}
+
+	if err := tx.Create(&detail).Error; err != nil {
+		tx.Rollback()
+		return utils.ResponseError(c, fiber.StatusInternalServerError, "Gagal menambahkan detail log", err.Error())
+	}
+
+	if err := s.recalculateLogHarianTotals(tx, uint(logID)); err != nil {
+		tx.Rollback()
+		return utils.ResponseError(c, fiber.StatusInternalServerError, "Gagal mengupdate total log", err.Error())
+	}
+
+	tx.Commit()
+
+	// NOTIFICATION
+	waktuLabel := models.GetWaktuMurojaahLabel(req.WaktuMurojaah)
+	s.NotifService.CreateNotificationForMahasantri(
+		userID,
+		models.NotifTargetHarian,
+		"Jadwal Murojaah Baru",
+		fmt.Sprintf("Antum telah menambahkan jadwal murojaah: %s (%d halaman). Semangat!", waktuLabel, totalHalaman),
+	)
+
+	return utils.SuccessResponse(c, fiber.StatusCreated, "Detail log berhasil ditambahkan", nil)
 }
 
-func (s *logMurojaahService) UpdateDetailLog(c *fiber.Ctx) error {
+// AddProgressToDetail
+func (s *logMurojaahService) AddProgressToDetail(c *fiber.Ctx) error {
 	claims := c.Locals("user").(*utils.Claims)
-	mahasantriID := claims.ID
-	detailID, err := c.ParamsInt("detailID")
+	userID := claims.ID
+
+	idParam := c.Params("id")
+	detailID, err := strconv.Atoi(idParam)
 	if err != nil {
-		return utils.ResponseError(c, fiber.StatusBadRequest, "ID detail log tidak valid", nil)
+		return utils.ResponseError(c, fiber.StatusBadRequest, "ID detail tidak valid", err.Error())
 	}
 
-	log := logrus.WithFields(logrus.Fields{"handler": "UpdateDetailLog", "mahasantriID": mahasantriID, "detailID": detailID})
-
-	var req dto.UpdateDetailLogRequest
+	var req dto.AddProgressRequest
 	if err := c.BodyParser(&req); err != nil {
-		log.WithError(err).Error("Gagal parsing body request")
 		return utils.ResponseError(c, fiber.StatusBadRequest, "Request body tidak valid", err.Error())
 	}
 
-	var detailLog models.DetailLog
+	tx := s.DB.Begin()
 
-	err = s.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Joins("JOIN log_harians ON log_harians.id = detail_logs.log_harian_id").
-			Where("detail_logs.id = ? AND log_harians.mahasantri_id = ?", detailID, mahasantriID).
-			First(&detailLog).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return fmt.Errorf("detail log tidak ditemukan atau Anda tidak punya hak akses")
-			}
-			return err
-		}
+	var detail models.DetailLog
+	if err := tx.Joins("JOIN log_harians ON log_harians.id = detail_logs.log_harian_id").
+		Where("detail_logs.id = ? AND log_harians.mahasantri_id = ?", detailID, userID).
+		First(&detail).Error; err != nil {
+		tx.Rollback()
+		return utils.ResponseError(c, fiber.StatusNotFound, "Sesi murojaah tidak ditemukan", nil)
+	}
 
-		totalSelesai, err := calculateTotalPages(detailLog.TargetStartJuz, detailLog.TargetStartHalaman, req.SelesaiEndJuz, req.SelesaiEndHalaman)
-		if err != nil {
-			return err
-		}
+	progress := models.ProgressLog{
+		DetailLogID:   uint(detailID),
+		JumlahHalaman: req.JumlahHalaman,
+		Catatan:       req.Catatan,
+	}
 
-		if totalSelesai > detailLog.TotalTargetHalaman {
-			totalSelesai = detailLog.TotalTargetHalaman
-		}
+	if err := tx.Create(&progress).Error; err != nil {
+		tx.Rollback()
+		return utils.ResponseError(c, fiber.StatusInternalServerError, "Gagal menyimpan progress", err.Error())
+	}
 
-		var newStatus models.StatusDetailLog
-		if totalSelesai >= detailLog.TotalTargetHalaman {
-			newStatus = "Selesai"
-			log.Info("Progres mencapai target. Status diatur ke 'Selesai'.")
-		} else if totalSelesai > 0 {
-			newStatus = "Berjalan"
-			log.Info("Progres parsial terdeteksi. Status diatur ke 'Berjalan'.")
-		} else {
-			newStatus = "Belum Selesai"
-			log.Info("Tidak ada progres. Status diatur ke 'Belum Selesai'.")
-		}
-
-		detailLog.SelesaiEndJuz = req.SelesaiEndJuz
-		detailLog.SelesaiEndHalaman = req.SelesaiEndHalaman
-		detailLog.TotalSelesaiHalaman = totalSelesai
-		detailLog.Catatan = req.Catatan
-		detailLog.Status = newStatus
-
-		if err := tx.Save(&detailLog).Error; err != nil {
-			return err
-		}
-
-		return s.recalculateTotals(tx, detailLog.LogHarianID)
-	})
-
+	newStatus, err := s.recalculateDetailLogTotals(tx, uint(detailID))
 	if err != nil {
-		log.WithError(err).Error("Gagal memperbarui detail log dalam transaksi")
-		if err.Error() == "progres selesai tidak boleh melebihi total target halaman" || err.Error() == "target/progres akhir tidak boleh lebih kecil dari awal" {
-			return utils.ResponseError(c, fiber.StatusBadRequest, err.Error(), nil)
-		}
-		if err.Error() == "detail log tidak ditemukan atau Anda tidak punya hak akses" {
-			return utils.ResponseError(c, fiber.StatusNotFound, "Detail log tidak ditemukan atau Anda tidak punya hak akses", nil)
-		}
-		return utils.ResponseError(c, fiber.StatusInternalServerError, "Gagal memperbarui sesi murojaah", err.Error())
+		tx.Rollback()
+		return utils.ResponseError(c, fiber.StatusInternalServerError, "Gagal mengupdate status log", err.Error())
 	}
 
-	response := dto.DetailLogResponse{
-		ID:                  detailLog.ID,
-		WaktuMurojaah:       detailLog.WaktuMurojaah,
-		TargetStartJuz:      detailLog.TargetStartJuz,
-		TargetStartHalaman:  detailLog.TargetStartHalaman,
-		TargetEndJuz:        detailLog.TargetEndJuz,
-		TargetEndHalaman:    detailLog.TargetEndHalaman,
-		TotalTargetHalaman:  detailLog.TotalTargetHalaman,
-		SelesaiEndJuz:       detailLog.SelesaiEndJuz,
-		SelesaiEndHalaman:   detailLog.SelesaiEndHalaman,
-		TotalSelesaiHalaman: detailLog.TotalSelesaiHalaman,
-		Status:              string(detailLog.Status),
-		Catatan:             detailLog.Catatan,
-		UpdatedAt:           detailLog.UpdatedAt,
+	if err := s.recalculateLogHarianTotals(tx, detail.LogHarianID); err != nil {
+		tx.Rollback()
+		return utils.ResponseError(c, fiber.StatusInternalServerError, "Gagal mengupdate total harian", err.Error())
 	}
 
-	log.Info("Berhasil memperbarui detail sesi murojaah")
-	return utils.SuccessResponse(c, fiber.StatusOK, "Sesi murojaah berhasil diperbarui", response)
+	tx.Commit()
+
+	// NOTIFICATION
+	s.NotifService.CreateNotificationForMahasantri(
+		userID,
+		models.NotifHafalanTercatat,
+		"Progress Tercatat",
+		fmt.Sprintf("Alhamdulillah, bertambah %d halaman. Teruskan semangatnya!", req.JumlahHalaman),
+	)
+
+	if newStatus == models.StatusSesiSelesai {
+		s.NotifService.CreateNotificationForMahasantri(
+			userID,
+			models.NotifMotivasi,
+			"Sesi Murojaah Selesai!",
+			"Masya Allah! Antum telah menyelesaikan target sesi ini. Barakallahu fiikum.",
+		)
+	}
+
+	return utils.SuccessResponse(c, fiber.StatusCreated, "Progress berhasil ditambahkan", dto.ProgressLogResponse{
+		ID:            progress.ID,
+		JumlahHalaman: progress.JumlahHalaman,
+		Catatan:       progress.Catatan,
+		CreatedAt:     progress.CreatedAt,
+	})
 }
 
+// DeleteDetailLog
 func (s *logMurojaahService) DeleteDetailLog(c *fiber.Ctx) error {
 	claims := c.Locals("user").(*utils.Claims)
-	mahasantriID := claims.ID
-	detailID, err := c.ParamsInt("detailID")
+	userID := claims.ID
+
+	idParam := c.Params("detailID")
+	detailID, err := strconv.Atoi(idParam)
 	if err != nil {
 		return utils.ResponseError(c, fiber.StatusBadRequest, "ID detail log tidak valid", nil)
 	}
-
-	log := logrus.WithFields(logrus.Fields{"handler": "DeleteDetailLog", "mahasantriID": mahasantriID, "detailID": detailID})
 
 	var detailLog models.DetailLog
 
 	err = s.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Joins("JOIN log_harians ON log_harians.id = detail_logs.log_harian_id").
-			Where("detail_logs.id = ? AND log_harians.mahasantri_id = ?", detailID, mahasantriID).
+			Where("detail_logs.id = ? AND log_harians.mahasantri_id = ?", detailID, userID).
 			First(&detailLog).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return fmt.Errorf("detail log tidak ditemukan atau Anda tidak punya hak akses")
 			}
 			return err
 		}
+
+		logHarianID := detailLog.LogHarianID
 
 		if err := tx.Delete(&detailLog).Error; err != nil {
 			return err
 		}
 
-		return s.recalculateTotals(tx, detailLog.LogHarianID)
+		return s.recalculateLogHarianTotals(tx, logHarianID)
 	})
 
 	if err != nil {
-		log.WithError(err).Error("Gagal menghapus detail log dalam transaksi")
-		if err.Error() == "detail log tidak ditemukan atau Anda tidak punya hak akses" {
-			return utils.ResponseError(c, fiber.StatusNotFound, "Detail log tidak ditemukan atau Anda tidak punya hak akses", nil)
-		}
 		return utils.ResponseError(c, fiber.StatusInternalServerError, "Gagal menghapus sesi murojaah", err.Error())
 	}
 
-	log.Info("Berhasil menghapus detail sesi murojaah")
 	return utils.SuccessResponse(c, fiber.StatusOK, "Sesi murojaah berhasil dihapus", nil)
 }
 
+// DeleteProgressLog
+func (s *logMurojaahService) DeleteProgressLog(c *fiber.Ctx) error {
+	claims := c.Locals("user").(*utils.Claims)
+	userID := claims.ID
+
+	idParam := c.Params("progressID")
+	progressID, err := strconv.Atoi(idParam)
+	if err != nil {
+		return utils.ResponseError(c, fiber.StatusBadRequest, "ID progress log tidak valid", nil)
+	}
+
+	err = s.DB.Transaction(func(tx *gorm.DB) error {
+		var progressLog models.ProgressLog
+		err := tx.
+			Joins("JOIN detail_logs ON detail_logs.id = progress_logs.detail_log_id").
+			Joins("JOIN log_harians ON log_harians.id = detail_logs.log_harian_id").
+			Where("progress_logs.id = ? AND log_harians.mahasantri_id = ?", progressID, userID).
+			First(&progressLog).Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return fmt.Errorf("progress log tidak ditemukan atau Anda tidak punya hak akses")
+			}
+			return err
+		}
+
+		detailLogID := progressLog.DetailLogID
+
+		var detailLog models.DetailLog
+		if err := tx.First(&detailLog, detailLogID).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Delete(&progressLog).Error; err != nil {
+			return err
+		}
+
+		if _, err := s.recalculateDetailLogTotals(tx, detailLogID); err != nil {
+			return err
+		}
+
+		return s.recalculateLogHarianTotals(tx, detailLog.LogHarianID)
+	})
+
+	if err != nil {
+		return utils.ResponseError(c, fiber.StatusInternalServerError, "Gagal menghapus progress", err.Error())
+	}
+
+	return utils.SuccessResponse(c, fiber.StatusOK, "Progress berhasil dihapus", nil)
+}
+
+// GetRecapMingguan
 func (s *logMurojaahService) GetRecapMingguan(c *fiber.Ctx) error {
 	claims := c.Locals("user").(*utils.Claims)
 	mahasantriID := claims.ID
-
-	log := logrus.WithFields(logrus.Fields{"handler": "GetRecapMingguan", "mahasantriID": mahasantriID})
-	log.Info("Menerima permintaan untuk rekap mingguan")
 
 	type RecapResult struct {
 		Tanggal             string `json:"tanggal"`
@@ -389,22 +476,16 @@ func (s *logMurojaahService) GetRecapMingguan(c *fiber.Ctx) error {
 		Scan(&results).Error
 
 	if err != nil {
-		log.WithError(err).Error("Gagal mengambil data rekap mingguan")
 		return utils.ResponseError(c, fiber.StatusInternalServerError, "Gagal mengambil rekap", err.Error())
 	}
 
 	return utils.SuccessResponse(c, fiber.StatusOK, "Rekap mingguan berhasil diambil", results)
 }
 
+// GetAllLogsForMentorDashboard
 func (s *logMurojaahService) GetAllLogsForMentorDashboard(c *fiber.Ctx) error {
 	claims := c.Locals("user").(*utils.Claims)
 	mentorID := claims.ID
-
-	log := logrus.WithFields(logrus.Fields{
-		"handler":  "GetAllLogsForMentorDashboard",
-		"mentorID": mentorID,
-	})
-	log.Info("Menerima permintaan untuk dasbor log harian mentor")
 
 	tanggalStr := c.Query("tanggal")
 	var tanggal time.Time
@@ -418,25 +499,21 @@ func (s *logMurojaahService) GetAllLogsForMentorDashboard(c *fiber.Ctx) error {
 		}
 	}
 	tanggal = time.Date(tanggal.Year(), tanggal.Month(), tanggal.Day(), 0, 0, 0, 0, time.UTC)
-	log = log.WithField("tanggal", tanggal.Format("2006-01-02"))
 
 	var mahasantriIDs []uint
 	if err := s.DB.Model(&models.Mahasantri{}).Where("mentor_id = ?", mentorID).Pluck("id", &mahasantriIDs).Error; err != nil {
-		log.WithError(err).Error("Gagal mengambil daftar ID mahasantri bimbingan")
 		return utils.ResponseError(c, fiber.StatusInternalServerError, "Gagal memproses data", err.Error())
 	}
 
 	if len(mahasantriIDs) == 0 {
-		log.Warn("Mentor tidak memiliki mahasantri bimbingan")
 		return utils.SuccessResponse(c, fiber.StatusOK, "Anda tidak memiliki mahasantri bimbingan", []interface{}{})
 	}
 
 	var logHarians []models.LogHarian
-	if err := s.DB.Preload("Mahasantri").Preload("DetailLogs").
+	if err := s.DB.Preload("Mahasantri").Preload("DetailLogs.ProgressLogs").
 		Where("mahasantri_id IN ?", mahasantriIDs).
 		Where("tanggal = ?", tanggal).
 		Find(&logHarians).Error; err != nil {
-		log.WithError(err).Error("Gagal mengambil log harian untuk dasbor mentor")
 		return utils.ResponseError(c, fiber.StatusInternalServerError, "Gagal mengambil data log", err.Error())
 	}
 
@@ -444,21 +521,12 @@ func (s *logMurojaahService) GetAllLogsForMentorDashboard(c *fiber.Ctx) error {
 	for i, logHarian := range logHarians {
 		detailDTOs := make([]dto.DetailLogResponse, len(logHarian.DetailLogs))
 		for j, detail := range logHarian.DetailLogs {
-			detailDTOs[j] = dto.DetailLogResponse{
-				ID:                  detail.ID,
-				WaktuMurojaah:       detail.WaktuMurojaah,
-				TargetStartJuz:      detail.TargetStartJuz,
-				TargetStartHalaman:  detail.TargetStartHalaman,
-				TargetEndJuz:        detail.TargetEndJuz,
-				TargetEndHalaman:    detail.TargetEndHalaman,
-				TotalTargetHalaman:  detail.TotalTargetHalaman,
-				SelesaiEndJuz:       detail.SelesaiEndJuz,
-				SelesaiEndHalaman:   detail.SelesaiEndHalaman,
-				TotalSelesaiHalaman: detail.TotalSelesaiHalaman,
-				Status:              string(detail.Status),
-				Catatan:             detail.Catatan,
-				UpdatedAt:           detail.UpdatedAt,
-			}
+			detailDTOs[j] = buildDetailLogResponse(detail)
+		}
+
+		var persentase float64
+		if logHarian.TotalTargetHalaman > 0 {
+			persentase = (float64(logHarian.TotalSelesaiHalaman) / float64(logHarian.TotalTargetHalaman)) * 100
 		}
 
 		responseDTOs[i] = dto.LogHarianForMentorResponse{
@@ -466,6 +534,7 @@ func (s *logMurojaahService) GetAllLogsForMentorDashboard(c *fiber.Ctx) error {
 			Tanggal:             logHarian.Tanggal.Format("02-01-2006"),
 			TotalTargetHalaman:  logHarian.TotalTargetHalaman,
 			TotalSelesaiHalaman: logHarian.TotalSelesaiHalaman,
+			PersentaseSelesai:   persentase,
 			Mahasantri: dto.MahasantriInfoForLog{
 				ID:   logHarian.Mahasantri.ID,
 				Nama: logHarian.Mahasantri.Nama,
@@ -474,16 +543,13 @@ func (s *logMurojaahService) GetAllLogsForMentorDashboard(c *fiber.Ctx) error {
 		}
 	}
 
-	log.WithField("count", len(responseDTOs)).Info("Berhasil mengambil data untuk dasbor mentor")
 	return utils.SuccessResponse(c, fiber.StatusOK, "Data log harian untuk semua mahasantri berhasil diambil", responseDTOs)
 }
 
+// GetStatistikMurojaah
 func (s *logMurojaahService) GetStatistikMurojaah(c *fiber.Ctx) error {
 	claims := c.Locals("user").(*utils.Claims)
 	mahasantriID := claims.ID
-
-	log := logrus.WithFields(logrus.Fields{"handler": "GetStatistikMurojaah", "mahasantriID": mahasantriID})
-	log.Info("Menerima permintaan untuk statistik murojaah")
 
 	var stats struct {
 		TotalSelesai int
@@ -494,7 +560,6 @@ func (s *logMurojaahService) GetStatistikMurojaah(c *fiber.Ctx) error {
 		Where("mahasantri_id = ? AND total_selesai_halaman > 0", mahasantriID).
 		Scan(&stats).Error
 	if err != nil {
-		log.WithError(err).Error("Gagal menghitung statistik dasar")
 		return utils.ResponseError(c, fiber.StatusInternalServerError, "Gagal memproses statistik", err.Error())
 	}
 
@@ -511,7 +576,6 @@ func (s *logMurojaahService) GetStatistikMurojaah(c *fiber.Ctx) error {
 		Limit(1).
 		Scan(&hariProduktif).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		log.WithError(err).Error("Gagal mencari hari paling produktif")
 		return utils.ResponseError(c, fiber.StatusInternalServerError, "Gagal memproses statistik", err.Error())
 	}
 
@@ -527,7 +591,6 @@ func (s *logMurojaahService) GetStatistikMurojaah(c *fiber.Ctx) error {
 		Limit(1).
 		Scan(&sesiProduktif).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		log.WithError(err).Error("Gagal mencari sesi paling produktif")
 		return utils.ResponseError(c, fiber.StatusInternalServerError, "Gagal memproses statistik", err.Error())
 	}
 
@@ -536,37 +599,26 @@ func (s *logMurojaahService) GetStatistikMurojaah(c *fiber.Ctx) error {
 		hariProduktifPtr = &hariProduktif
 	}
 
+	sesiLabel := ""
+	if sesiProduktif.WaktuMurojaah != "" {
+		sesiLabel = models.GetWaktuMurojaahLabel(sesiProduktif.WaktuMurojaah)
+	}
+
 	response := dto.StatistikMurojaahResponse{
 		TotalSelesaiHalaman:    stats.TotalSelesai,
 		TotalHariAktif:         stats.HariAktif,
 		RataRataHalamanPerHari: rataRata,
-		SesiPalingProduktif:    sesiProduktif.WaktuMurojaah,
+		SesiPalingProduktif:    sesiLabel,
 		HariPalingProduktif:    hariProduktifPtr,
 	}
 
-	log.Info("Berhasil mengambil data statistik murojaah")
 	return utils.SuccessResponse(c, fiber.StatusOK, "Statistik murojaah berhasil diambil", response)
 }
 
-// GetRekapBimbinganMingguan - Mengambil rekapitulasi progres mingguan semua mahasantri bimbingan.
-// @Summary Rekapitulasi Mingguan Bimbingan
-// @Description Endpoint untuk mengambil rekapitulasi progres muroja'ah (total halaman target vs selesai) selama 7 hari terakhir untuk semua mahasantri yang diampu oleh mentor yang sedang login. Hasil diurutkan berdasarkan halaman selesai terbanyak.
-// @Tags Mentor
-// @Accept json
-// @Produce json
-// @Success 200 {object} utils.Response "Rekapitulasi mingguan berhasil diambil"
-// @Failure 500 {object} utils.Response "Gagal mengambil data rekapitulasi"
-// @Security BearerAuth
-// @Router /api/v1/mentor/rekap-bimbingan/mingguan [get]
+// GetRekapBimbinganMingguan
 func (s *logMurojaahService) GetRekapBimbinganMingguan(c *fiber.Ctx) error {
 	claims := c.Locals("user").(*utils.Claims)
 	mentorID := claims.ID
-
-	log := logrus.WithFields(logrus.Fields{
-		"handler":  "GetRekapBimbinganMingguan",
-		"mentorID": mentorID,
-	})
-	log.Info("Menerima permintaan untuk rekap bimbingan mingguan")
 
 	endDate := time.Now()
 	startDate := endDate.AddDate(0, 0, -6)
@@ -592,7 +644,6 @@ func (s *logMurojaahService) GetRekapBimbinganMingguan(c *fiber.Ctx) error {
 		Scan(&results).Error
 
 	if err != nil {
-		log.WithError(err).Error("Gagal mengambil data rekapitulasi bimbingan")
 		return utils.ResponseError(c, fiber.StatusInternalServerError, "Gagal mengambil data rekapitulasi", err.Error())
 	}
 
@@ -604,15 +655,13 @@ func (s *logMurojaahService) GetRekapBimbinganMingguan(c *fiber.Ctx) error {
 		}
 	}
 
-	log.WithField("count", len(results)).Info("Berhasil mengambil rekapitulasi bimbingan mingguan")
 	return utils.SuccessResponse(c, fiber.StatusOK, "Rekapitulasi bimbingan mingguan berhasil diambil", results)
 }
 
+// ApplyAIRekomendasi
 func (s *logMurojaahService) ApplyAIRekomendasi(c *fiber.Ctx) error {
 	claims := c.Locals("user").(*utils.Claims)
 	mahasantriID := claims.ID
-
-	log := logrus.WithFields(logrus.Fields{"handler": "ApplyAIRekomendasi", "mahasantriID": mahasantriID})
 
 	var req dto.ApplyAIRekomendasiRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -633,6 +682,18 @@ func (s *logMurojaahService) ApplyAIRekomendasi(c *fiber.Ctx) error {
 			return err
 		}
 
+		// VALIDASI: Cek apakah ada DetailLog yang belum selesai
+		var unfinishedCount int64
+		if err := tx.Model(&models.DetailLog{}).
+			Where("log_harian_id = ? AND status != ?", logHarian.ID, models.StatusSesiSelesai).
+			Count(&unfinishedCount).Error; err != nil {
+			return err
+		}
+
+		if unfinishedCount > 0 {
+			return errors.New("tidak bisa membuat sesi baru, masih ada sesi yang belum selesai")
+		}
+
 		totalTarget, err := calculateTotalPages(req.TargetStartJuz, req.TargetStartHalaman, req.TargetEndJuz, req.TargetEndHalaman)
 		if err != nil {
 			return err
@@ -640,7 +701,7 @@ func (s *logMurojaahService) ApplyAIRekomendasi(c *fiber.Ctx) error {
 
 		newDetail = models.DetailLog{
 			LogHarianID:        logHarian.ID,
-			WaktuMurojaah:      fmt.Sprintf("AI: %s", rekomendasi.RekomendasiJadwal),
+			WaktuMurojaah:      fmt.Sprintf("AI_%s", rekomendasi.RekomendasiJadwal),
 			TargetStartJuz:     req.TargetStartJuz,
 			TargetStartHalaman: req.TargetStartHalaman,
 			TargetEndJuz:       req.TargetEndJuz,
@@ -653,34 +714,30 @@ func (s *logMurojaahService) ApplyAIRekomendasi(c *fiber.Ctx) error {
 			return err
 		}
 
-		return s.recalculateTotals(tx, logHarian.ID)
+		return s.recalculateLogHarianTotals(tx, logHarian.ID)
 	})
 
 	if err != nil {
-		log.WithError(err).Error("Gagal menerapkan rekomendasi AI dalam transaksi")
-		if err.Error() == "riwayat rekomendasi tidak ditemukan atau bukan milik anda" {
-			return utils.ResponseError(c, fiber.StatusNotFound, err.Error(), nil)
+		errMsg := err.Error()
+		if errMsg == "riwayat rekomendasi tidak ditemukan atau bukan milik anda" {
+			return utils.ResponseError(c, fiber.StatusNotFound, errMsg, nil)
 		}
-		if err.Error() == "target/progres akhir tidak boleh lebih kecil dari awal" {
-			return utils.ResponseError(c, fiber.StatusBadRequest, err.Error(), nil)
+		if errMsg == "target/progres akhir tidak boleh lebih kecil dari awal" ||
+			errMsg == "tidak bisa membuat sesi baru, masih ada sesi yang belum selesai" {
+			return utils.ResponseError(c, fiber.StatusBadRequest, errMsg, nil)
 		}
 		return utils.ResponseError(c, fiber.StatusInternalServerError, "Gagal menerapkan rekomendasi", err.Error())
 	}
 
-	response := dto.DetailLogResponse{
-		ID:                  newDetail.ID,
-		WaktuMurojaah:       newDetail.WaktuMurojaah,
-		TargetStartJuz:      newDetail.TargetStartJuz,
-		TargetStartHalaman:  newDetail.TargetStartHalaman,
-		TargetEndJuz:        newDetail.TargetEndJuz,
-		TargetEndHalaman:    newDetail.TargetEndHalaman,
-		TotalTargetHalaman:  newDetail.TotalTargetHalaman,
-		SelesaiEndJuz:       newDetail.SelesaiEndJuz,
-		SelesaiEndHalaman:   newDetail.SelesaiEndHalaman,
-		TotalSelesaiHalaman: newDetail.TotalSelesaiHalaman,
-		Status:              string(newDetail.Status),
-		Catatan:             newDetail.Catatan,
-		UpdatedAt:           newDetail.UpdatedAt,
-	}
+	response := buildDetailLogResponse(newDetail)
+
+	// NOTIFICATION for AI Applied
+	s.NotifService.CreateNotificationForMahasantri(
+		mahasantriID,
+		models.NotifTargetHarian,
+		"Rekomendasi AI Diterapkan",
+		"Jadwal dari rekomendasi AI berhasil ditambahkan. Semangat!",
+	)
+
 	return utils.SuccessResponse(c, fiber.StatusCreated, "Rekomendasi berhasil diterapkan ke log harian", response)
 }

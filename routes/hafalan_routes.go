@@ -11,7 +11,8 @@ import (
 )
 
 func SetupHafalanRoutes(app *fiber.App, db *gorm.DB) {
-	service := services.HafalanService{DB: db}
+	notifService := services.NewNotificationService(db)
+	service := services.NewHafalanService(db, notifService)
 
 	hafalanLimiter := limiter.New(limiter.Config{
 		Max:        5,

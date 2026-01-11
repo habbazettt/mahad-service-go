@@ -1,27 +1,27 @@
 {
+    "bada shubuh, bada maghrib, bada isya, sebelum tidur":{
+        "Total Penggunaan":40,
+        "Penggunaan Efektif":23,
+        "Persentase Efektif (%)":57.5
+    },
     "bada shubuh, bada isya, sebelum tidur":{
         "Total Penggunaan":21,
-        "Penggunaan Dianggap Efektif (Skor >=4)":12,
+        "Penggunaan Efektif":12,
         "Persentase Efektif (%)":57.1428571429
     },
-    "bada shubuh, bada maghrib, bada isya, sebelum tidur":{
-        "Total Penggunaan":42,
-        "Penggunaan Dianggap Efektif (Skor >=4)":23,
-        "Persentase Efektif (%)":54.7619047619
-    },
     "bada shubuh, bada maghrib, bada isya":{
-        "Total Penggunaan":126,
-        "Penggunaan Dianggap Efektif (Skor >=4)":69,
-        "Persentase Efektif (%)":54.7619047619
+        "Total Penggunaan":116,
+        "Penggunaan Efektif":64,
+        "Persentase Efektif (%)":55.1724137931
     },
     "bada shubuh, bada isya":{
-        "Total Penggunaan":185,
-        "Penggunaan Dianggap Efektif (Skor >=4)":94,
-        "Persentase Efektif (%)":50.8108108108
+        "Total Penggunaan":173,
+        "Penggunaan Efektif":88,
+        "Persentase Efektif (%)":50.8670520231
     },
     "bada shubuh, bada maghrib":{
-        "Total Penggunaan":31,
-        "Penggunaan Dianggap Efektif (Skor >=4)":13,
-        "Persentase Efektif (%)":41.935483871
+        "Total Penggunaan":30,
+        "Penggunaan Efektif":13,
+        "Persentase Efektif (%)":43.3333333333
     }
 }

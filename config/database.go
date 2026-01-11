@@ -60,6 +60,7 @@ func MigrateDB() {
 	}
 
 	err := DB.AutoMigrate(
+		&models.Admin{},
 		&models.Mentor{},
 		&models.Mahasantri{},
 		&models.Hafalan{},
@@ -69,6 +70,8 @@ func MigrateDB() {
 		&models.JadwalPersonal{},
 		&models.LogHarian{},
 		&models.DetailLog{},
+		&models.ProgressLog{},
+		&models.Notification{},
 	)
 	if err != nil {
 		logrus.WithError(err).Fatal("❌ Gagal melakukan migrasi database!")

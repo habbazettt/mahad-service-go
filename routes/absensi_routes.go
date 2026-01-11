@@ -11,7 +11,8 @@ import (
 )
 
 func SetupAbsensiRoutes(app *fiber.App, db *gorm.DB) {
-	absensiService := services.AbsensiService{DB: db}
+	notifService := services.NewNotificationService(db)
+	absensiService := services.NewAbsensiService(db, notifService)
 
 	absensiLimiter := limiter.New(limiter.Config{
 		Max:        5,

@@ -16,7 +16,15 @@ import (
 )
 
 type AbsensiService struct {
-	DB *gorm.DB
+	DB           *gorm.DB
+	NotifService *NotificationService
+}
+
+func NewAbsensiService(db *gorm.DB, notifService *NotificationService) *AbsensiService {
+	return &AbsensiService{
+		DB:           db,
+		NotifService: notifService,
+	}
 }
 
 // CreateAbsensi - Membuat absensi baru
@@ -145,6 +153,15 @@ func (s *AbsensiService) CreateAbsensi(c *fiber.Ctx) error {
 				Gender:  absensiWithRelations.Mahasantri.Gender,
 			},
 		}
+
+		// Trigger Notifikasi
+		s.NotifService.CreateNotificationForMahasantri(
+			absensi.MahasantriID,
+			models.NotifAbsensiTercatat,
+			"Absensi Tercatat",
+			fmt.Sprintf("Kehadiran antum pada %s (%s) telah berhasil dicatat.", absensiWithRelations.GetFormattedTanggal(), absensi.Waktu),
+		)
+
 		batchResponse = append(batchResponse, response)
 	}
 

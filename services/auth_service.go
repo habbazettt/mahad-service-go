@@ -12,6 +12,7 @@ import (
 const (
 	RoleMentor     = "mentor"
 	RoleMahasantri = "mahasantri"
+	RoleAdmin      = "admin"
 )
 
 // AuthService menangani logika autentikasi pengguna
@@ -412,6 +413,21 @@ func (s *AuthService) GetCurrentUser(c *fiber.Ctx) error {
 			MentorID:             mahasantri.MentorID,
 			UserType:             RoleMahasantri,
 			IsDataMurojaahFilled: mahasantri.IsDataMurojaahFilled,
+		}
+
+	case RoleAdmin:
+		var admin models.Admin
+		if err := s.DB.First(&admin, userClaims.ID).Error; err != nil {
+			logrus.Warn("Admin not found: ", userClaims.ID)
+			return utils.ResponseError(c, fiber.StatusNotFound, "User not found", nil)
+		}
+
+		// Format response for Admin
+		response = dto.UserAdminResponse{
+			ID:       admin.ID,
+			Nama:     admin.Nama,
+			Email:    admin.Email,
+			UserType: RoleAdmin,
 		}
 
 	default:
